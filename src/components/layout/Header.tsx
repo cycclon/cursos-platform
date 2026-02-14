@@ -13,6 +13,7 @@ export default function Header() {
   const publicLinks = [
     { to: '/', label: 'Inicio' },
     { to: '/cursos', label: 'Cursos' },
+    { to: '/combos', label: 'Combos' },
     { to: '/sobre-mi', label: 'Sobre Mí' },
     { to: '/preguntas-frecuentes', label: 'FAQ' },
   ];

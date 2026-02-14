@@ -149,3 +149,16 @@ export interface Testimonial {
   text: string;
   courseTitle: string;
 }
+
+export interface Bundle {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  courseIds: string[];
+  price: number;
+  originalPrice: number;
+  discountLabel: string;
+  imageUrl: string;
+  featured: boolean;
+}

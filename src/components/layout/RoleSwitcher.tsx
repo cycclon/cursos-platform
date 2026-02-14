@@ -8,7 +8,6 @@ const roles: { value: UserRole; label: string; color: string; redirect: string }
   { value: 'visitor', label: 'Visitante', color: 'bg-ink-light', redirect: '/' },
   { value: 'student', label: 'Estudiante', color: 'bg-chocolate', redirect: '/mi-panel' },
   { value: 'teacher', label: 'Docente', color: 'bg-gold', redirect: '/admin/panel' },
-  { value: 'superuser', label: 'Superusuario', color: 'bg-error', redirect: '/superusuario' },
 ];
 
 export default function RoleSwitcher() {

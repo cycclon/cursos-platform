@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, BookOpen, Users, Award, Star } from 'lucide-react';
-import { courses, teacher, testimonials } from '@/data/mock';
+import { ArrowRight, BookOpen, Users, Award, Star, Package } from 'lucide-react';
+import { courses, teacher, testimonials, bundles, getBundleCourses, formatPrice } from '@/data/mock';
 import CourseCard from '@/components/course/CourseCard';
 
 export default function Landing() {
@@ -121,6 +121,73 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* ── Combos ─────────────────────────────────────── */}
+      {bundles.filter(b => b.featured).length > 0 && (
+        <section className="bg-warm-gradient">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
+            <div className="text-center mb-12">
+              <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">Ahorrá combinando</span>
+              <h2 className="font-display text-3xl md:text-4xl font-bold text-ink mt-2 mb-3">
+                Combos Especiales
+              </h2>
+              <p className="text-ink-light max-w-xl mx-auto">
+                Combiná cursos y accedé a descuentos exclusivos diseñados para potenciar tu formación profesional.
+              </p>
+            </div>
+            <div className="grid md:grid-cols-2 gap-6 stagger-children">
+              {bundles.filter(b => b.featured).map(bundle => {
+                const bundleCourses = getBundleCourses(bundle);
+                const savings = bundle.originalPrice - bundle.price;
+                return (
+                  <Link
+                    key={bundle.id}
+                    to={`/combos/${bundle.slug}`}
+                    className="group flex flex-col sm:flex-row bg-parchment rounded-xl overflow-hidden shadow-warm border border-chocolate-100/20 card-accent"
+                  >
+                    <div className="sm:w-48 shrink-0 aspect-[16/10] sm:aspect-auto overflow-hidden">
+                      <img
+                        src={bundle.imageUrl}
+                        alt={bundle.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    </div>
+                    <div className="p-5 flex flex-col justify-between flex-1">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Package className="w-4 h-4 text-gold" />
+                          <span className="text-xs font-semibold text-gold uppercase tracking-wider">{bundleCourses.length} cursos</span>
+                          <span className="bg-error text-cream text-xs font-bold px-2 py-0.5 rounded-full ml-auto">{bundle.discountLabel}</span>
+                        </div>
+                        <h3 className="font-display text-lg font-bold text-ink group-hover:text-chocolate transition-colors mb-1">
+                          {bundle.title}
+                        </h3>
+                        <p className="text-sm text-ink-light line-clamp-2">{bundle.description}</p>
+                      </div>
+                      <div className="flex items-center justify-between mt-4 pt-3 border-t border-chocolate-100/30">
+                        <div>
+                          <span className="text-xs text-ink-light line-through">{formatPrice(bundle.originalPrice)}</span>
+                          <span className="block text-lg font-bold text-chocolate">{formatPrice(bundle.price)}</span>
+                        </div>
+                        <span className="text-xs text-success font-semibold">Ahorrás {formatPrice(savings)}</span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="text-center mt-10">
+              <Link
+                to="/combos"
+                className="inline-flex items-center gap-2 text-chocolate font-semibold hover:text-chocolate-dark transition-colors"
+              >
+                Ver todos los combos
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ── Testimonials ──────────────────────────────── */}
       <section className="diagonal-accent diagonal-accent-left">

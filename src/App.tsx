@@ -12,6 +12,8 @@ import Catalog from './pages/public/Catalog'
 import CourseDetail from './pages/public/CourseDetail'
 import About from './pages/public/About'
 import Faq from './pages/public/Faq'
+import Bundles from './pages/public/Bundles'
+import BundleDetail from './pages/public/BundleDetail'
 import Login from './pages/public/Login'
 import Register from './pages/public/Register'
 
@@ -24,6 +26,7 @@ import Certificate from './pages/student/Certificate'
 // Teacher pages
 import TeacherDashboard from './pages/teacher/TeacherDashboard'
 import CourseManager from './pages/teacher/CourseManager'
+import BundleManager from './pages/teacher/BundleManager'
 import Statistics from './pages/teacher/Statistics'
 
 // Admin pages
@@ -45,6 +48,8 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/cursos" element={<Catalog />} />
           <Route path="/cursos/:slug" element={<CourseDetail />} />
+          <Route path="/combos" element={<Bundles />} />
+          <Route path="/combos/:slug" element={<BundleDetail />} />
           <Route path="/sobre-mi" element={<About />} />
           <Route path="/preguntas-frecuentes" element={<Faq />} />
           <Route path="/ingresar" element={<Login />} />
@@ -69,6 +74,7 @@ export default function App() {
         <Route element={<DashboardLayout />}>
           <Route path="/admin/panel" element={<TeacherDashboard />} />
           <Route path="/admin/cursos" element={<CourseManager />} />
+          <Route path="/admin/combos" element={<BundleManager />} />
           <Route path="/admin/estadisticas" element={<Statistics />} />
         </Route>
 

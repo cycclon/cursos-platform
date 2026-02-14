@@ -4,7 +4,7 @@ import Header from './Header';
 import RoleSwitcher from './RoleSwitcher';
 import {
   LayoutDashboard, BookOpen, BarChart3,
-  Award, ChevronRight,
+  Award, ChevronRight, Package,
 } from 'lucide-react';
 
 export default function DashboardLayout() {
@@ -21,6 +21,7 @@ export default function DashboardLayout() {
   const teacherLinks = [
     { to: '/admin/panel', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/admin/cursos', label: 'Mis Cursos', icon: BookOpen },
+    { to: '/admin/combos', label: 'Combos', icon: Package },
     { to: '/admin/estadisticas', label: 'Estadísticas', icon: BarChart3 },
   ];
 

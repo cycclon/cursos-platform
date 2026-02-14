@@ -1,4 +1,4 @@
-import type { Course, Module, Review, FAQ, Teacher, Enrollment, Certificate, SalesData, CourseStat, Question, Testimonial, User } from '@/types';
+import type { Course, Module, Review, FAQ, Teacher, Enrollment, Certificate, SalesData, CourseStat, Question, Testimonial, User, Bundle } from '@/types';
 
 // ── Users ─────────────────────────────────────────────
 export const mockUsers: Record<string, User> = {
@@ -727,6 +727,46 @@ export const testimonials: Testimonial[] = [
   },
 ];
 
+// ── Bundles ──────────────────────────────────────────
+export const bundles: Bundle[] = [
+  {
+    id: 'b1',
+    title: 'Formación Integral en Derecho',
+    slug: 'formacion-integral-derecho',
+    description: 'El paquete más completo: combiná Derecho Penal, Civil y de Familia en una formación integral con un descuento exclusivo. Ideal para quienes buscan una base sólida en las tres ramas fundamentales del derecho.',
+    courseIds: ['c1', 'c2', 'c4'],
+    originalPrice: 115000, // 35000 + 42000 + 38000
+    price: 86250,
+    discountLabel: '25% OFF',
+    imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=500&fit=crop',
+    featured: true,
+  },
+  {
+    id: 'b2',
+    title: 'Derecho Civil Completo',
+    slug: 'derecho-civil-completo',
+    description: 'Dominá el Derecho Civil y de Familia con este combo que cubre sucesiones, matrimonio, divorcio, responsabilidad parental y adopción bajo el Código Civil y Comercial unificado.',
+    courseIds: ['c2', 'c4'],
+    originalPrice: 80000, // 42000 + 38000
+    price: 64000,
+    discountLabel: '20% OFF',
+    imageUrl: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=800&h=500&fit=crop',
+    featured: true,
+  },
+  {
+    id: 'b3',
+    title: 'Pack Profesional',
+    slug: 'pack-profesional',
+    description: 'Potenciá tu práctica profesional combinando el dominio del Derecho Laboral actualizado con las técnicas de Oratoria Jurídica. El combo perfecto para destacarte en audiencias y negociaciones.',
+    courseIds: ['c3', 'c5'],
+    originalPrice: 43000, // 28000 + 15000
+    price: 30100,
+    discountLabel: '30% OFF',
+    imageUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&h=500&fit=crop',
+    featured: false,
+  },
+];
+
 // ── Helper functions ──────────────────────────────────
 export const getCourse = (id: string) => courses.find(c => c.id === id);
 export const getCourseBySlug = (slug: string) => courses.find(c => c.slug === slug);
@@ -734,6 +774,9 @@ export const getCourseReviews = (courseId: string) => reviews.filter(r => r.cour
 export const getEnrollment = (courseId: string) => enrollments.find(e => e.courseId === courseId);
 export const getCertificate = (id: string) => certificates.find(c => c.id === id);
 export const getCategories = () => [...new Set(courses.map(c => c.category))];
+
+export const getBundleBySlug = (slug: string) => bundles.find(b => b.slug === slug);
+export const getBundleCourses = (bundle: Bundle) => bundle.courseIds.map(id => courses.find(c => c.id === id)!);
 
 export const formatPrice = (price: number) =>
   new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(price);
