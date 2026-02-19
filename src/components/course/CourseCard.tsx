@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import { Clock, Users, BookOpen } from 'lucide-react';
 import type { Course } from '@/types';
-import { formatPrice } from '@/data/mock';
+import { formatPrice } from '@/utils/format';
 import StarRating from '@/components/ui/StarRating';
+import CourseImage from '@/components/ui/CourseImage';
 
 interface CourseCardProps {
   course: Course;
@@ -16,10 +17,10 @@ export default function CourseCard({ course }: CourseCardProps) {
     >
       {/* Image */}
       <div className="relative aspect-[16/10] overflow-hidden">
-        <img
+        <CourseImage
           src={course.imageUrl}
           alt={course.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          className="transition-transform duration-500 group-hover:scale-105"
         />
         {course.discountLabel && (
           <span className="absolute top-3 right-3 bg-error text-cream text-xs font-bold px-2.5 py-1 rounded-full">
@@ -45,7 +46,7 @@ export default function CourseCard({ course }: CourseCardProps) {
           </span>
           <span className="flex items-center gap-1">
             <BookOpen className="w-3.5 h-3.5" />
-            {course.modules.length} módulos
+            {course.modules?.length ?? 0} módulos
           </span>
           <span className="flex items-center gap-1">
             <Users className="w-3.5 h-3.5" />

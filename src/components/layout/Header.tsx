@@ -1,19 +1,31 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, BookOpen, User, LogIn } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { Menu, X, BookOpen, User, LogIn, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
+import { bundlesService } from '@/services/bundles';
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { role, isAuthenticated, user } = useAuth();
+  const { role, isAuthenticated, user, logout } = useAuth();
+  const toast = useToast();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isActive = (path: string) => location.pathname === path;
+
+  const { data: bundles = [] } = useQuery({
+    queryKey: ['bundles'],
+    queryFn: bundlesService.getBundles,
+  });
+
+  const hasCombos = bundles.length > 0;
 
   const publicLinks = [
     { to: '/', label: 'Inicio' },
     { to: '/cursos', label: 'Cursos' },
-    { to: '/combos', label: 'Combos' },
+    ...(hasCombos ? [{ to: '/combos', label: 'Combos' }] : []),
     { to: '/sobre-mi', label: 'Sobre Mí' },
     { to: '/preguntas-frecuentes', label: 'FAQ' },
   ];
@@ -38,6 +50,12 @@ export default function Header() {
     ...(role === 'teacher' ? teacherLinks : []),
     ...(role === 'superuser' ? superuserLinks : []),
   ];
+
+  const handleLogout = async () => {
+    await logout();
+    toast.success('Sesión cerrada.');
+    navigate('/');
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-parchment/95 backdrop-blur-sm border-b border-chocolate-100/50">
@@ -74,15 +92,24 @@ export default function Header() {
           {/* Right side */}
           <div className="flex items-center gap-3">
             {isAuthenticated ? (
-              <Link
-                to={role === 'teacher' ? '/admin/panel' : role === 'superuser' ? '/superusuario' : '/mi-panel'}
-                className="hidden md:flex items-center gap-2 text-sm font-medium text-ink-light hover:text-chocolate transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full bg-chocolate-100 flex items-center justify-center">
-                  <User className="w-4 h-4 text-chocolate" />
-                </div>
-                <span>{user?.name?.split(' ')[0]}</span>
-              </Link>
+              <div className="hidden md:flex items-center gap-3">
+                <Link
+                  to={role === 'teacher' ? '/admin/panel' : role === 'superuser' ? '/superusuario' : '/mi-panel'}
+                  className="flex items-center gap-2 text-sm font-medium text-ink-light hover:text-chocolate transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-chocolate-100 flex items-center justify-center">
+                    <User className="w-4 h-4 text-chocolate" />
+                  </div>
+                  <span>{user?.name?.split(' ')[0]}</span>
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="p-2 rounded-lg text-ink-light hover:text-chocolate hover:bg-chocolate-50 transition-colors"
+                  title="Cerrar sesión"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
             ) : (
               <Link
                 to="/ingresar"
@@ -122,7 +149,14 @@ export default function Header() {
                 {link.label}
               </Link>
             ))}
-            {!isAuthenticated && (
+            {isAuthenticated ? (
+              <button
+                onClick={() => { setMobileOpen(false); handleLogout(); }}
+                className="block w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-ink-light hover:text-chocolate hover:bg-chocolate-50"
+              >
+                Cerrar sesión
+              </button>
+            ) : (
               <Link
                 to="/ingresar"
                 onClick={() => setMobileOpen(false)}

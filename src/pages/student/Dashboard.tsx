@@ -1,10 +1,55 @@
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Clock, Award, ArrowRight, Play } from 'lucide-react';
-import { enrollments, certificates, getCourse } from '@/data/mock';
+import { enrollmentsService } from '@/services/enrollments';
+import { certificatesService } from '@/services/certificates';
+import { coursesService } from '@/services/courses';
 import { useAuth } from '@/context/AuthContext';
+import CourseImage from '@/components/ui/CourseImage';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
+
+  const { data: enrollments = [], isLoading: loadingEnrollments } = useQuery({
+    queryKey: ['enrollments'],
+    queryFn: enrollmentsService.getEnrollments,
+  });
+
+  const { data: certificates = [], isLoading: loadingCertificates } = useQuery({
+    queryKey: ['certificates'],
+    queryFn: certificatesService.getCertificates,
+  });
+
+  const { data: courses = [], isLoading: loadingCourses } = useQuery({
+    queryKey: ['courses'],
+    queryFn: coursesService.getCourses,
+  });
+
+  const isLoading = loadingEnrollments || loadingCertificates || loadingCourses;
+
+  const getCourse = (id: string) => courses.find(c => c.id === id);
+
+  if (isLoading) {
+    return (
+      <div>
+        <div className="mb-8">
+          <div className="h-8 bg-parchment rounded animate-pulse w-64" />
+          <div className="h-4 bg-parchment rounded animate-pulse w-80 mt-2" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+          {Array.from({ length: 3 }, (_, i) => (
+            <div key={i} className="bg-parchment rounded-xl p-5 border border-chocolate-100/20 h-20 animate-pulse" />
+          ))}
+        </div>
+        <div className="h-6 bg-parchment rounded animate-pulse w-32 mb-4" />
+        <div className="space-y-4">
+          {Array.from({ length: 2 }, (_, i) => (
+            <div key={i} className="bg-parchment rounded-xl p-5 border border-chocolate-100/20 h-36 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -50,7 +95,7 @@ export default function StudentDashboard() {
             >
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="w-full sm:w-40 aspect-video rounded-lg overflow-hidden shrink-0">
-                  <img src={course.imageUrl} alt={course.title} className="w-full h-full object-cover" />
+                  <CourseImage src={course.imageUrl} alt={course.title} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">

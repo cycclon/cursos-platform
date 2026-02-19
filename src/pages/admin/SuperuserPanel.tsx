@@ -1,13 +1,46 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   DollarSign, Users, BookOpen, TrendingUp, Calculator,
   AlertCircle, Settings,
 } from 'lucide-react';
-import { salesData, courses, formatPrice } from '@/data/mock';
+import { coursesService } from '@/services/courses';
+import { statisticsService } from '@/services/statistics';
+import { formatPrice } from '@/utils/format';
 
 export default function SuperuserPanel() {
   const [feeType, setFeeType] = useState<'percentage' | 'fixed'>('percentage');
   const [feeValue, setFeeValue] = useState(10);
+
+  const { data: courses = [], isLoading: loadingCourses } = useQuery({
+    queryKey: ['courses'],
+    queryFn: coursesService.getCourses,
+  });
+
+  const { data: salesData = [], isLoading: loadingSales } = useQuery({
+    queryKey: ['statistics', 'sales'],
+    queryFn: statisticsService.getSalesData,
+  });
+
+  const isLoading = loadingCourses || loadingSales;
+
+  if (isLoading) {
+    return (
+      <div>
+        <div className="mb-8">
+          <div className="h-4 bg-parchment rounded animate-pulse w-32" />
+          <div className="h-8 bg-parchment rounded animate-pulse w-60 mt-2" />
+          <div className="h-4 bg-parchment rounded animate-pulse w-72 mt-2" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="bg-parchment rounded-xl p-5 border border-chocolate-100/20 h-28 animate-pulse" />
+          ))}
+        </div>
+        <div className="bg-parchment rounded-xl p-6 border-2 border-error/10 h-64 animate-pulse" />
+      </div>
+    );
+  }
 
   const totalRevenue = salesData.reduce((sum, d) => sum + d.revenue, 0);
   const totalStudents = courses.reduce((sum, c) => sum + c.studentCount, 0);
@@ -35,7 +68,7 @@ export default function SuperuserPanel() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         {[
           { icon: DollarSign, label: 'Ingresos totales', value: formatPrice(totalRevenue), sub: 'Acumulado anual' },
-          { icon: TrendingUp, label: 'Ingresos último mes', value: formatPrice(lastMonth.revenue), sub: lastMonth.month },
+          { icon: TrendingUp, label: 'Ingresos último mes', value: formatPrice(lastMonth?.revenue ?? 0), sub: lastMonth?.month ?? '—' },
           { icon: Users, label: 'Estudiantes totales', value: totalStudents.toString(), sub: 'Inscripciones activas' },
           { icon: BookOpen, label: 'Ventas totales', value: totalSales.toString(), sub: 'Transacciones completadas' },
         ].map((stat, i) => {

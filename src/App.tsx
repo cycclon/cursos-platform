@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
-import { useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useToast } from './context/ToastContext'
 
 // Layouts
 import PublicLayout from './components/layout/PublicLayout'
@@ -28,6 +29,7 @@ import TeacherDashboard from './pages/teacher/TeacherDashboard'
 import CourseManager from './pages/teacher/CourseManager'
 import BundleManager from './pages/teacher/BundleManager'
 import Statistics from './pages/teacher/Statistics'
+import FaqManager from './pages/teacher/FaqManager'
 
 // Admin pages
 import SuperuserPanel from './pages/admin/SuperuserPanel'
@@ -38,10 +40,32 @@ function ScrollToTop() {
   return null
 }
 
+function GoogleLoginToast() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const toast = useToast()
+  const handled = useRef(false)
+
+  useEffect(() => {
+    if (handled.current) return
+    const params = new URLSearchParams(location.search)
+    if (params.get('login') === 'success') {
+      handled.current = true
+      toast.success('Sesión iniciada correctamente.')
+      params.delete('login')
+      const clean = params.toString()
+      navigate(location.pathname + (clean ? `?${clean}` : ''), { replace: true })
+    }
+  }, [location.search, navigate, toast])
+
+  return null
+}
+
 export default function App() {
   return (
     <>
       <ScrollToTop />
+      <GoogleLoginToast />
       <Routes>
         {/* Public routes */}
         <Route element={<PublicLayout />}>
@@ -75,6 +99,7 @@ export default function App() {
           <Route path="/admin/panel" element={<TeacherDashboard />} />
           <Route path="/admin/cursos" element={<CourseManager />} />
           <Route path="/admin/combos" element={<BundleManager />} />
+          <Route path="/admin/faq" element={<FaqManager />} />
           <Route path="/admin/estadisticas" element={<Statistics />} />
         </Route>
 

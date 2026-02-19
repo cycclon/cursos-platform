@@ -1,11 +1,42 @@
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, BookOpen, Users, Award, Star, Package } from 'lucide-react';
-import { courses, teacher, testimonials, bundles, getBundleCourses, formatPrice } from '@/data/mock';
+import { coursesService } from '@/services/courses';
+import { teacherService } from '@/services/teacher';
+import { testimonialsService } from '@/services/testimonials';
+import { bundlesService } from '@/services/bundles';
+import { formatPrice } from '@/utils/format';
 import CourseCard from '@/components/course/CourseCard';
+import type { Bundle, Course } from '@/types';
+
+function getBundleCourses(bundle: Bundle, courses: Course[]): Course[] {
+  return bundle.courseIds.map(id => courses.find(c => c.id === id)).filter(Boolean) as Course[];
+}
 
 export default function Landing() {
+  const { data: courses = [] } = useQuery({
+    queryKey: ['courses'],
+    queryFn: coursesService.getCourses,
+  });
+
+  const { data: teacher } = useQuery({
+    queryKey: ['teacher'],
+    queryFn: teacherService.getTeacher,
+  });
+
+  const { data: testimonials = [] } = useQuery({
+    queryKey: ['testimonials'],
+    queryFn: testimonialsService.getTestimonials,
+  });
+
+  const { data: bundles = [] } = useQuery({
+    queryKey: ['bundles'],
+    queryFn: bundlesService.getBundles,
+  });
+
   const featured = courses.filter(c => c.featured);
   const totalStudents = courses.reduce((sum, c) => sum + c.studentCount, 0);
+  const featuredBundles = bundles.filter(b => b.featured);
 
   return (
     <div>
@@ -40,32 +71,34 @@ export default function Landing() {
                 </Link>
               </div>
             </div>
-            <div className="hidden md:block relative">
-              <div className="relative rounded-2xl overflow-hidden shadow-warm-lg">
-                <img
-                  src={teacher.photoUrl}
-                  alt={teacher.name}
-                  className="w-full aspect-[4/5] object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-ink/40 via-transparent to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-6">
-                  <p className="font-display text-xl font-bold text-cream">{teacher.name}</p>
-                  <p className="text-sm text-cream-dark/80">{teacher.title}</p>
-                </div>
-              </div>
-              {/* Floating stat card */}
-              <div className="absolute -left-8 bottom-20 bg-parchment rounded-xl shadow-warm-lg p-4 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center">
-                    <Star className="w-5 h-5 text-gold fill-gold" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-ink">4.7</p>
-                    <p className="text-xs text-ink-light">Valoración promedio</p>
+            {teacher && (
+              <div className="hidden md:block relative">
+                <div className="relative rounded-2xl overflow-hidden shadow-warm-lg">
+                  <img
+                    src={teacher.photoUrl}
+                    alt={teacher.name}
+                    className="w-full aspect-[4/5] object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-ink/40 via-transparent to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-6">
+                    <p className="font-display text-xl font-bold text-cream">{teacher.name}</p>
+                    <p className="text-sm text-cream-dark/80">{teacher.title}</p>
                   </div>
                 </div>
+                {/* Floating stat card */}
+                <div className="absolute -left-8 bottom-20 bg-parchment rounded-xl shadow-warm-lg p-4 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center">
+                      <Star className="w-5 h-5 text-gold fill-gold" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-ink">4.7</p>
+                      <p className="text-xs text-ink-light">Valoración promedio</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </section>
@@ -76,7 +109,7 @@ export default function Landing() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             {[
               { icon: BookOpen, value: `${courses.length}`, label: 'Cursos disponibles' },
-              { icon: Users, value: `+${totalStudents}`, label: 'Estudiantes' },
+              { icon: Users, value: totalStudents > 0 ? `+${totalStudents}` : '...', label: 'Estudiantes' },
               { icon: Award, value: '100%', label: 'Contenido original' },
               { icon: Star, value: '4.7', label: 'Valoración promedio' },
             ].map((stat, i) => {
@@ -94,36 +127,38 @@ export default function Landing() {
       </section>
 
       {/* ── Featured Courses ──────────────────────────── */}
-      <section className="bg-section-alt">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
-          <div className="text-center mb-12">
-            <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">Formación destacada</span>
-            <h2 className="font-display text-3xl md:text-4xl font-bold text-ink mt-2 mb-3">
-              Cursos Destacados
-            </h2>
-            <p className="text-ink-light max-w-xl mx-auto">
-              Selección de cursos diseñados para potenciar tu práctica profesional con conocimiento actualizado y aplicable.
-            </p>
+      {featured.length > 0 && (
+        <section className="bg-section-alt">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
+            <div className="text-center mb-12">
+              <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">Formación destacada</span>
+              <h2 className="font-display text-3xl md:text-4xl font-bold text-ink mt-2 mb-3">
+                Cursos Destacados
+              </h2>
+              <p className="text-ink-light max-w-xl mx-auto">
+                Selección de cursos diseñados para potenciar tu práctica profesional con conocimiento actualizado y aplicable.
+              </p>
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
+              {featured.map(course => (
+                <CourseCard key={course.id} course={course} />
+              ))}
+            </div>
+            <div className="text-center mt-10">
+              <Link
+                to="/cursos"
+                className="inline-flex items-center gap-2 text-chocolate font-semibold hover:text-chocolate-dark transition-colors"
+              >
+                Ver todos los cursos
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
-            {featured.map(course => (
-              <CourseCard key={course.id} course={course} />
-            ))}
-          </div>
-          <div className="text-center mt-10">
-            <Link
-              to="/cursos"
-              className="inline-flex items-center gap-2 text-chocolate font-semibold hover:text-chocolate-dark transition-colors"
-            >
-              Ver todos los cursos
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ── Combos ─────────────────────────────────────── */}
-      {bundles.filter(b => b.featured).length > 0 && (
+      {featuredBundles.length > 0 && (
         <section className="bg-warm-gradient">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
             <div className="text-center mb-12">
@@ -136,8 +171,8 @@ export default function Landing() {
               </p>
             </div>
             <div className="grid md:grid-cols-2 gap-6 stagger-children">
-              {bundles.filter(b => b.featured).map(bundle => {
-                const bundleCourses = getBundleCourses(bundle);
+              {featuredBundles.map(bundle => {
+                const bundleCourses = getBundleCourses(bundle, courses);
                 const savings = bundle.originalPrice - bundle.price;
                 return (
                   <Link
@@ -145,12 +180,14 @@ export default function Landing() {
                     to={`/combos/${bundle.slug}`}
                     className="group flex flex-col sm:flex-row bg-parchment rounded-xl overflow-hidden shadow-warm border border-chocolate-100/20 card-accent"
                   >
-                    <div className="sm:w-48 shrink-0 aspect-[16/10] sm:aspect-auto overflow-hidden">
-                      <img
-                        src={bundle.imageUrl}
-                        alt={bundle.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
+                    <div className="sm:w-48 shrink-0 aspect-[16/10] sm:aspect-auto overflow-hidden bg-chocolate-50">
+                      {bundle.imageUrl && (
+                        <img
+                          src={bundle.imageUrl}
+                          alt={bundle.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      )}
                     </div>
                     <div className="p-5 flex flex-col justify-between flex-1">
                       <div>
@@ -190,34 +227,36 @@ export default function Landing() {
       )}
 
       {/* ── Testimonials ──────────────────────────────── */}
-      <section className="diagonal-accent diagonal-accent-left">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
-          <div className="text-center mb-12">
-            <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">Testimonios</span>
-            <h2 className="font-display text-3xl md:text-4xl font-bold text-ink mt-2">
-              Lo que dicen nuestros alumnos
-            </h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6 stagger-children">
-            {testimonials.map(t => (
-              <div key={t.id} className="bg-parchment rounded-xl p-6 shadow-warm border border-chocolate-100/20">
-                <div className="flex gap-1 mb-4">
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <Star key={i} className="w-4 h-4 text-gold fill-gold" />
-                  ))}
+      {testimonials.length > 0 && (
+        <section className="diagonal-accent diagonal-accent-left">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
+            <div className="text-center mb-12">
+              <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">Testimonios</span>
+              <h2 className="font-display text-3xl md:text-4xl font-bold text-ink mt-2">
+                Lo que dicen nuestros alumnos
+              </h2>
+            </div>
+            <div className="grid md:grid-cols-3 gap-6 stagger-children">
+              {testimonials.map(t => (
+                <div key={t.id} className="bg-parchment rounded-xl p-6 shadow-warm border border-chocolate-100/20">
+                  <div className="flex gap-1 mb-4">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <Star key={i} className="w-4 h-4 text-gold fill-gold" />
+                    ))}
+                  </div>
+                  <p className="font-display text-base italic text-ink leading-relaxed mb-4">
+                    &ldquo;{t.text}&rdquo;
+                  </p>
+                  <div className="pt-4 border-t border-chocolate-100/20">
+                    <p className="text-sm font-semibold text-ink">{t.name}</p>
+                    <p className="text-xs text-ink-light">{t.courseTitle}</p>
+                  </div>
                 </div>
-                <p className="font-display text-base italic text-ink leading-relaxed mb-4">
-                  &ldquo;{t.text}&rdquo;
-                </p>
-                <div className="pt-4 border-t border-chocolate-100/20">
-                  <p className="text-sm font-semibold text-ink">{t.name}</p>
-                  <p className="text-xs text-ink-light">{t.courseTitle}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ── CTA ───────────────────────────────────────── */}
       <section className="bg-chocolate">

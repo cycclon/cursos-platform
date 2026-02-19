@@ -1,11 +1,92 @@
-import { useParams, Link } from 'react-router-dom';
-import { BookOpen, Award, ArrowRight, Package, CheckCircle2, ShieldCheck } from 'lucide-react';
-import { getBundleBySlug, getBundleCourses, formatPrice } from '@/data/mock';
+import { useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { BookOpen, Award, ArrowRight, Package, CheckCircle2, ShieldCheck, AlertTriangle, Loader2 } from 'lucide-react';
+import { bundlesService } from '@/services/bundles';
+import { coursesService } from '@/services/courses';
+import { enrollmentsService } from '@/services/enrollments';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
+import { formatPrice } from '@/utils/format';
 import CourseCard from '@/components/course/CourseCard';
+import type { Bundle, Course } from '@/types';
+
+function getBundleCourses(bundle: Bundle, courses: Course[]): Course[] {
+  return bundle.courseIds.map(id => courses.find(c => c.id === id)).filter(Boolean) as Course[];
+}
 
 export default function BundleDetail() {
   const { slug } = useParams<{ slug: string }>();
-  const bundle = getBundleBySlug(slug ?? '');
+  const { isAuthenticated } = useAuth();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  const [enrolling, setEnrolling] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const { data: bundle, isLoading: loadingBundle } = useQuery({
+    queryKey: ['bundles', slug],
+    queryFn: () => bundlesService.getBundleBySlug(slug!),
+    enabled: !!slug,
+  });
+
+  const { data: courses = [] } = useQuery({
+    queryKey: ['courses'],
+    queryFn: coursesService.getCourses,
+  });
+
+  const { data: enrollments = [] } = useQuery({
+    queryKey: ['enrollments'],
+    queryFn: enrollmentsService.getEnrollments,
+    enabled: isAuthenticated,
+  });
+
+  const handleEnroll = async () => {
+    if (!isAuthenticated) {
+      toast.error('Iniciá sesión para inscribirte.');
+      navigate('/ingresar');
+      return;
+    }
+
+    // If some courses are already enrolled and user hasn't confirmed yet, show confirmation
+    if (someEnrolled && !showConfirm) {
+      setShowConfirm(true);
+      return;
+    }
+
+    setEnrolling(true);
+    try {
+      const toEnroll = bundleCourses.filter(c => !enrolledCourseIds.has(c.id));
+      await Promise.all(toEnroll.map(c =>
+        enrollmentsService.createEnrollment(c.id).catch(() => {
+          // Ignore 409 (already enrolled)
+        }),
+      ));
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      toast.success(`¡Inscripción exitosa! Se agregaron ${toEnroll.length} curso${toEnroll.length === 1 ? '' : 's'}.`);
+      setShowConfirm(false);
+    } catch {
+      toast.error('Error al procesar la inscripción.');
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
+  if (loadingBundle) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-20">
+        <div className="grid lg:grid-cols-3 gap-10">
+          <div className="lg:col-span-2 space-y-4">
+            <div className="h-6 bg-parchment rounded animate-pulse w-1/4" />
+            <div className="h-10 bg-parchment rounded animate-pulse w-3/4" />
+            <div className="h-4 bg-parchment rounded animate-pulse" />
+          </div>
+          <div className="h-96 bg-parchment rounded-2xl animate-pulse" />
+        </div>
+      </div>
+    );
+  }
 
   if (!bundle) {
     return (
@@ -16,9 +97,15 @@ export default function BundleDetail() {
     );
   }
 
-  const bundleCourses = getBundleCourses(bundle);
-  const totalModules = bundleCourses.reduce((sum, c) => sum + c.modules.length, 0);
+  const bundleCourses = getBundleCourses(bundle, courses);
+  const totalModules = bundleCourses.reduce((sum, c) => sum + (c.modules?.length ?? 0), 0);
   const savings = bundle.originalPrice - bundle.price;
+
+  const enrolledCourseIds = new Set(enrollments.map(e => e.courseId));
+  const enrolledInBundle = bundleCourses.filter(c => enrolledCourseIds.has(c.id));
+  const allEnrolled = bundleCourses.length > 0 && enrolledInBundle.length === bundleCourses.length;
+  const someEnrolled = enrolledInBundle.length > 0 && !allEnrolled;
+  const notEnrolledCount = bundleCourses.length - enrolledInBundle.length;
 
   return (
     <div>
@@ -42,17 +129,21 @@ export default function BundleDetail() {
 
             {/* Price Card */}
             <div className="bg-parchment rounded-2xl shadow-warm-lg p-6 border border-chocolate-100/20 self-start">
-              <div className="relative aspect-video rounded-xl overflow-hidden mb-5">
-                <img src={bundle.imageUrl} alt={bundle.title} className="w-full h-full object-cover" />
+              <div className="relative aspect-video rounded-xl overflow-hidden mb-5 bg-chocolate-50">
+                {bundle.imageUrl && (
+                  <img src={bundle.imageUrl} alt={bundle.title} className="w-full h-full object-cover" />
+                )}
                 <div className="absolute inset-0 bg-ink/20 flex items-center justify-center">
                   <div className="w-12 h-12 rounded-full bg-cream/90 flex items-center justify-center">
                     <Package className="w-5 h-5 text-chocolate" />
                   </div>
                 </div>
               </div>
-              <span className="inline-block bg-success-light text-success text-xs font-bold px-2.5 py-1 rounded-full mb-4">
-                {bundle.discountLabel}
-              </span>
+              {bundle.discountLabel && (
+                <span className="inline-block bg-success-light text-success text-xs font-bold px-2.5 py-1 rounded-full mb-4">
+                  {bundle.discountLabel}
+                </span>
+              )}
               <div className="mb-4">
                 <div className="flex items-baseline gap-3">
                   <span className="font-display text-3xl font-bold text-chocolate">{formatPrice(bundle.price)}</span>
@@ -61,9 +152,62 @@ export default function BundleDetail() {
                 <p className="text-success font-semibold text-sm mt-1">Ahorrás {formatPrice(savings)}</p>
               </div>
 
-              <button className="btn-primary btn-lg btn-full rounded-xl">
-                Inscribirme ahora
-              </button>
+              {allEnrolled ? (
+                <div className="flex items-center gap-2 justify-center py-3 px-4 rounded-xl bg-success-light border border-success/20">
+                  <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
+                  <span className="text-sm font-semibold text-success">Ya estás inscripto/a en todos los cursos de este combo</span>
+                </div>
+              ) : showConfirm ? (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-2 p-3 rounded-xl bg-gold/10 border border-gold/20">
+                    <AlertTriangle className="w-4 h-4 text-gold shrink-0 mt-0.5" />
+                    <div className="text-xs text-ink-light">
+                      <p className="font-semibold text-ink mb-1">
+                        Ya estás inscripto/a en {enrolledInBundle.length === 1 ? '1 curso' : `${enrolledInBundle.length} cursos`} de este combo:
+                      </p>
+                      <ul className="list-disc list-inside space-y-0.5">
+                        {enrolledInBundle.map(c => (
+                          <li key={c.id}>{c.title}</li>
+                        ))}
+                      </ul>
+                      <p className="mt-2 text-ink">
+                        Se {notEnrolledCount === 1 ? 'agregará 1 curso nuevo' : `agregarán ${notEnrolledCount} cursos nuevos`} a tu panel.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleEnroll}
+                    disabled={enrolling}
+                    className="btn-primary btn-lg btn-full rounded-xl disabled:opacity-60"
+                  >
+                    {enrolling ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirmar inscripción'}
+                  </button>
+                  <button
+                    onClick={() => setShowConfirm(false)}
+                    className="btn-ghost btn-md btn-full rounded-xl"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {someEnrolled && (
+                    <div className="flex items-start gap-2 p-3 rounded-xl bg-gold/10 border border-gold/20 mb-3">
+                      <AlertTriangle className="w-4 h-4 text-gold shrink-0 mt-0.5" />
+                      <p className="text-xs text-ink-light">
+                        Ya estás inscripto/a en {enrolledInBundle.length} de {bundleCourses.length} cursos de este combo.
+                      </p>
+                    </div>
+                  )}
+                  <button
+                    onClick={handleEnroll}
+                    disabled={enrolling}
+                    className="btn-primary btn-lg btn-full rounded-xl disabled:opacity-60"
+                  >
+                    {enrolling ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Inscribirme ahora'}
+                  </button>
+                </>
+              )}
 
               <div className="mt-4 flex items-start gap-2 text-xs text-ink-light">
                 <ShieldCheck className="w-4 h-4 text-success shrink-0 mt-0.5" />

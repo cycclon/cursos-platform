@@ -1,7 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
-import RoleSwitcher from './RoleSwitcher';
 
 export default function PublicLayout() {
   return (
@@ -11,7 +10,6 @@ export default function PublicLayout() {
         <Outlet />
       </main>
       <Footer />
-      <RoleSwitcher />
     </div>
   );
 }

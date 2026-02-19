@@ -1,10 +1,28 @@
 import { useParams, Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Printer, ArrowLeft, Award } from 'lucide-react';
-import { getCertificate } from '@/data/mock';
+import { certificatesService } from '@/services/certificates';
 
 export default function Certificate() {
   const { id } = useParams<{ id: string }>();
-  const cert = getCertificate(id ?? '');
+
+  const { data: cert, isLoading } = useQuery({
+    queryKey: ['certificates', id],
+    queryFn: () => certificatesService.getCertificate(id!),
+    enabled: !!id,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <div className="flex items-center justify-between mb-8">
+          <div className="h-5 w-36 bg-parchment rounded animate-pulse" />
+          <div className="h-10 w-44 bg-parchment rounded-lg animate-pulse" />
+        </div>
+        <div className="bg-parchment rounded-2xl border-2 border-gold/30 h-[500px] animate-pulse" />
+      </div>
+    );
+  }
 
   if (!cert) {
     return (
@@ -20,7 +38,7 @@ export default function Certificate() {
   });
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
+    <div className="max-w-4xl mx-auto px-4 py-12 print-certificate">
       {/* Actions bar */}
       <div className="flex items-center justify-between mb-8 no-print">
         <Link to="/mi-panel" className="inline-flex items-center gap-2 text-sm text-chocolate font-medium hover:text-chocolate-dark transition-colors">
@@ -37,7 +55,7 @@ export default function Certificate() {
       </div>
 
       {/* Certificate */}
-      <div className="bg-parchment rounded-2xl border-2 border-gold/30 shadow-warm-lg overflow-hidden">
+      <div className="bg-parchment rounded-2xl border-2 border-gold/30 shadow-warm-lg overflow-hidden print-certificate-card">
         {/* Gold top border */}
         <div className="h-2 bg-gradient-to-r from-gold-light via-gold to-gold-light" />
 

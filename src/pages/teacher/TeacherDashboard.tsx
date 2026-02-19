@@ -1,16 +1,55 @@
+import { useQuery } from '@tanstack/react-query';
 import {
   DollarSign, Users, BookOpen, Star, TrendingUp,
   ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
-import { courses, salesData, courseStats, formatPrice } from '@/data/mock';
+import { coursesService } from '@/services/courses';
+import { statisticsService } from '@/services/statistics';
+import { formatPrice } from '@/utils/format';
 
 export default function TeacherDashboard() {
+  const { data: courses = [], isLoading: loadingCourses } = useQuery({
+    queryKey: ['courses'],
+    queryFn: coursesService.getCourses,
+  });
+
+  const { data: salesData = [], isLoading: loadingSales } = useQuery({
+    queryKey: ['statistics', 'sales'],
+    queryFn: statisticsService.getSalesData,
+  });
+
+  const { data: courseStats = [], isLoading: loadingStats } = useQuery({
+    queryKey: ['statistics', 'courses'],
+    queryFn: statisticsService.getCourseStats,
+  });
+
+  const isLoading = loadingCourses || loadingSales || loadingStats;
+
+  if (isLoading) {
+    return (
+      <div>
+        <div className="mb-8">
+          <div className="h-8 bg-parchment rounded animate-pulse w-40" />
+          <div className="h-4 bg-parchment rounded animate-pulse w-64 mt-2" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="bg-parchment rounded-xl p-5 border border-chocolate-100/20 h-28 animate-pulse" />
+          ))}
+        </div>
+        <div className="bg-parchment rounded-xl p-6 border border-chocolate-100/20 h-64 animate-pulse" />
+      </div>
+    );
+  }
+
   const totalRevenue = salesData.reduce((sum, d) => sum + d.revenue, 0);
   const totalStudents = courses.reduce((sum, c) => sum + c.studentCount, 0);
-  const avgRating = courses.reduce((sum, c) => sum + c.rating, 0) / courses.length;
+  const avgRating = courses.length > 0 ? courses.reduce((sum, c) => sum + c.rating, 0) / courses.length : 0;
   const lastMonth = salesData[salesData.length - 1];
   const prevMonth = salesData[salesData.length - 2];
-  const revenueChange = ((lastMonth.revenue - prevMonth.revenue) / prevMonth.revenue * 100).toFixed(1);
+  const revenueChange = prevMonth && lastMonth
+    ? ((lastMonth.revenue - prevMonth.revenue) / prevMonth.revenue * 100).toFixed(1)
+    : '0';
 
   return (
     <div>

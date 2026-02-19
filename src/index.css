@@ -13,6 +13,7 @@
   --color-ink: #2C1810;
   --color-ink-light: #6B5B4F;
   --color-gold: #C8956C;
+  --color-gold-dark: #8B6914;
   --color-gold-light: #E8C9A8;
   --color-success: #4A7C59;
   --color-success-light: #E8F5EC;
@@ -171,6 +172,21 @@ a {
 .stagger-children > *:nth-child(4) { animation-delay: 0.2s; }
 .stagger-children > *:nth-child(5) { animation-delay: 0.25s; }
 .stagger-children > *:nth-child(6) { animation-delay: 0.3s; }
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s ease-out forwards;
+}
 
 /* ── Buttons ───────────────────────────────────────── */
 .btn-primary {
@@ -349,12 +365,54 @@ a {
   background: linear-gradient(90deg, var(--color-gold), transparent);
 }
 
+/* Datalist styling */
+datalist {
+  background: var(--color-parchment) !important;
+  border: 1px solid rgba(123, 63, 0, 0.1) !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  padding: 0.25rem 0 !important;
+}
+
+datalist option {
+  padding: 0.5rem 1rem !important;
+  color: var(--color-ink) !important;
+  cursor: pointer !important;
+  background: var(--color-parchment) !important;
+}
+
+datalist option:hover,
+datalist option:focus,
+datalist option:checked {
+  background: var(--color-cream-dark) !important;
+  color: var(--color-ink) !important;
+}
+
 /* Print styles for certificate */
 @media print {
   body::before {
     display: none;
   }
-  .no-print {
+  .no-print,
+  header,
+  footer {
     display: none !important;
+  }
+  body, html {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .print-certificate {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .print-certificate-card {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
   }
 }

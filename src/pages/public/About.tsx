@@ -1,7 +1,30 @@
-import { teacher } from '@/data/mock';
+import { useQuery } from '@tanstack/react-query';
+import { teacherService } from '@/services/teacher';
 import { CheckCircle2, BookOpen, Scale, GraduationCap } from 'lucide-react';
 
 export default function About() {
+  const { data: teacher, isLoading } = useQuery({
+    queryKey: ['teacher'],
+    queryFn: teacherService.getTeacher,
+  });
+
+  if (isLoading || !teacher) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-20">
+        <div className="grid lg:grid-cols-5 gap-12">
+          <div className="lg:col-span-2">
+            <div className="aspect-[3/4] bg-parchment rounded-2xl animate-pulse" />
+          </div>
+          <div className="lg:col-span-3 space-y-6">
+            <div className="h-8 bg-parchment rounded animate-pulse w-1/3" />
+            <div className="h-4 bg-parchment rounded animate-pulse" />
+            <div className="h-4 bg-parchment rounded animate-pulse w-3/4" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Hero */}

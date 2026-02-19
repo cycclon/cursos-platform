@@ -17,6 +17,14 @@ export interface Teacher {
   videoUrl?: string;
 }
 
+export interface ModuleVideo {
+  id: string;
+  url: string;
+  title: string;
+  duration: number; // seconds
+  order: number;
+}
+
 export interface Module {
   id: string;
   courseId: string;
@@ -25,6 +33,7 @@ export interface Module {
   description: string;
   videoUrl?: string;
   videoDuration?: string;
+  videos: ModuleVideo[];
   materials: Material[];
   isFree: boolean;
 }
@@ -34,10 +43,12 @@ export interface Material {
   name: string;
   type: 'pdf' | 'docx' | 'pptx' | 'xlsx';
   size: string;
+  fileUrl?: string;
 }
 
 export interface Course {
   id: string;
+  teacherId: string;
   title: string;
   slug: string;
   category: string;
@@ -70,6 +81,15 @@ export interface TestConfig {
   passingScore: number; // percentage
 }
 
+export interface TestQuestion {
+  id: string;
+  courseId: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  order: number;
+}
+
 export interface Question {
   id: string;
   courseId: string;
@@ -97,12 +117,28 @@ export interface Review {
   teacherReplyDate?: string;
 }
 
+export interface VideoProgress {
+  watchedSeconds: number;
+  maxReachedSeconds: number;
+  duration: number;
+  lastPosition: number;
+  completed: boolean;
+}
+
+export interface ModuleProgressEntry {
+  videos: Record<string, VideoProgress>;
+  completed: boolean;
+  lastVideoId?: string;
+}
+
 export interface Enrollment {
   id: string;
   courseId: string;
   studentId: string;
   progress: number; // percentage
   completedModules: string[];
+  moduleProgress?: Record<string, ModuleProgressEntry | number>;
+  lastWatchedModule?: string;
   enrolledAt: string;
   testPassed?: boolean;
   testScore?: number;

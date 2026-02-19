@@ -1,8 +1,14 @@
-import { faqs } from '@/data/mock';
+import { useQuery } from '@tanstack/react-query';
+import { faqsService } from '@/services/faqs';
 import Accordion from '@/components/ui/Accordion';
 import { Mail } from 'lucide-react';
 
 export default function Faq() {
+  const { data: faqs = [], isLoading } = useQuery({
+    queryKey: ['faqs'],
+    queryFn: faqsService.getFaqs,
+  });
+
   const items = faqs.map(f => ({ id: f.id, title: f.question, content: f.answer }));
 
   return (
@@ -20,7 +26,15 @@ export default function Faq() {
       </section>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <Accordion items={items} />
+        {isLoading ? (
+          <div className="space-y-4">
+            {Array.from({ length: 5 }, (_, i) => (
+              <div key={i} className="h-14 bg-parchment rounded-xl animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <Accordion items={items} />
+        )}
 
         <div className="mt-12 text-center bg-parchment rounded-xl p-8 border border-chocolate-100/20 shadow-warm">
           <p className="font-display text-lg font-semibold text-ink mb-2">¿No encontraste lo que buscabas?</p>

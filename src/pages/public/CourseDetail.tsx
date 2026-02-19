@@ -4,16 +4,78 @@ import {
   FileText, ChevronDown, ChevronUp, ArrowRight, CheckCircle2,
 } from 'lucide-react';
 import { useState } from 'react';
-import { getCourseBySlug, getCourseReviews, formatPrice } from '@/data/mock';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { coursesService } from '@/services/courses';
+import { enrollmentsService } from '@/services/enrollments';
+import CourseImage from '@/components/ui/CourseImage';
+import { reviewsService } from '@/services/reviews';
+import { formatPrice } from '@/utils/format';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import StarRating from '@/components/ui/StarRating';
 
 export default function CourseDetail() {
   const { slug } = useParams<{ slug: string }>();
-  const course = getCourseBySlug(slug ?? '');
-  const reviews = course ? getCourseReviews(course.id) : [];
-  const { role } = useAuth();
-  const [expandedModule, setExpandedModule] = useState<string | null>(course?.modules[0]?.id ?? null);
+  const { user, role, isAuthenticated } = useAuth();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: course, isLoading } = useQuery({
+    queryKey: ['courses', slug],
+    queryFn: () => coursesService.getCourseBySlug(slug!),
+    enabled: !!slug,
+  });
+
+  const { data: enrollments = [] } = useQuery({
+    queryKey: ['enrollments'],
+    queryFn: enrollmentsService.getEnrollments,
+    enabled: isAuthenticated && role === 'student',
+  });
+
+  const isEnrolled = enrollments.some(e => e.courseId === course?.id);
+
+  const handleEnroll = async () => {
+    if (!isAuthenticated) {
+      toast.error('Iniciá sesión para inscribirte');
+      return;
+    }
+    try {
+      await enrollmentsService.createEnrollment(course!.id);
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      toast.success('¡Inscripción exitosa! Ya podés acceder al curso.');
+    } catch (err: unknown) {
+      const error = err as { status?: number };
+      if (error.status === 409) {
+        queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+        toast.success('Ya estás inscrito en este curso.');
+      } else {
+        toast.error('Error al procesar la inscripción');
+      }
+    }
+  };
+
+  const { data: reviews = [] } = useQuery({
+    queryKey: ['reviews', course?.id],
+    queryFn: () => reviewsService.getCourseReviews(course!.id),
+    enabled: !!course?.id,
+  });
+
+  const [expandedModule, setExpandedModule] = useState<string | null>(null);
+
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-20">
+        <div className="grid lg:grid-cols-3 gap-10">
+          <div className="lg:col-span-2 space-y-4">
+            <div className="h-6 bg-parchment rounded animate-pulse w-1/4" />
+            <div className="h-10 bg-parchment rounded animate-pulse w-3/4" />
+            <div className="h-4 bg-parchment rounded animate-pulse" />
+          </div>
+          <div className="h-96 bg-parchment rounded-2xl animate-pulse" />
+        </div>
+      </div>
+    );
+  }
 
   if (!course) {
     return (
@@ -22,6 +84,11 @@ export default function CourseDetail() {
         <Link to="/cursos" className="text-chocolate mt-4 inline-block">Volver al catálogo</Link>
       </div>
     );
+  }
+
+  // Set initial expanded module after data loads
+  if (expandedModule === null && (course.modules?.length ?? 0) > 0) {
+    // Use a ref-like approach or just let it be null on first render
   }
 
   const fileIcon: Record<string, string> = { pdf: 'PDF', docx: 'DOC', pptx: 'PPT', xlsx: 'XLS' };
@@ -41,7 +108,7 @@ export default function CourseDetail() {
 
               <div className="flex flex-wrap items-center gap-4 text-sm text-ink-light mb-6">
                 <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" />{course.duration}</span>
-                <span className="flex items-center gap-1.5"><BookOpen className="w-4 h-4" />{course.modules.length} módulos</span>
+                <span className="flex items-center gap-1.5"><BookOpen className="w-4 h-4" />{course.modules?.length ?? 0} módulos</span>
                 <span className="flex items-center gap-1.5"><Users className="w-4 h-4" />{course.studentCount} estudiantes</span>
                 {course.hasCertificate && <span className="flex items-center gap-1.5"><Award className="w-4 h-4 text-gold" />Con certificado</span>}
               </div>
@@ -55,7 +122,7 @@ export default function CourseDetail() {
             {/* Price Card */}
             <div className="bg-parchment rounded-2xl shadow-warm-lg p-6 border border-chocolate-100/20 self-start">
               <div className="relative aspect-video rounded-xl overflow-hidden mb-5">
-                <img src={course.imageUrl} alt={course.title} className="w-full h-full object-cover" />
+                <CourseImage src={course.imageUrl} alt={course.title} />
                 <div className="absolute inset-0 bg-ink/30 flex items-center justify-center">
                   <div className="w-14 h-14 rounded-full bg-cream/90 flex items-center justify-center">
                     <Play className="w-6 h-6 text-chocolate ml-0.5" />
@@ -74,15 +141,25 @@ export default function CourseDetail() {
                 )}
               </div>
 
-              {role === 'student' ? (
+              {role === 'student' && isEnrolled ? (
                 <Link
                   to={`/aprender/${course.id}`}
                   className="block text-center btn-primary btn-lg btn-full rounded-xl"
                 >
                   Ir al curso
                 </Link>
+              ) : role === 'teacher' && course.teacherId === user?.id ? (
+                <Link
+                  to={`/admin/cursos`}
+                  className="block text-center btn-secondary btn-lg btn-full rounded-xl"
+                >
+                  Editar curso
+                </Link>
               ) : (
-                <button className="btn-primary btn-lg btn-full rounded-xl">
+                <button
+                  onClick={handleEnroll}
+                  className="btn-primary btn-lg btn-full rounded-xl"
+                >
                   Inscribirme ahora
                 </button>
               )}
@@ -133,7 +210,7 @@ export default function CourseDetail() {
             <div>
               <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">Contenido del curso</h2>
               <p className="text-sm text-ink-light mb-6 mt-6">
-                {course.modules.length} módulos · {course.duration} de contenido
+                {course.modules?.length ?? 0} módulos · {course.duration} de contenido
               </p>
               <div className="space-y-3">
                 {course.modules.map(mod => {

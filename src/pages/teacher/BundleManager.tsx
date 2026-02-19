@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, Edit3, Eye, Trash2, Package, BookOpen, X, Check, DollarSign, MoreVertical,
 } from 'lucide-react';
-import { courses, bundles as mockBundles, getBundleCourses, formatPrice } from '@/data/mock';
-import type { Bundle } from '@/types';
+import { coursesService } from '@/services/courses';
+import { bundlesService } from '@/services/bundles';
+import { formatPrice } from '@/utils/format';
+import { useToast } from '@/context/ToastContext';
+import type { Bundle, Course } from '@/types';
 
 function generateSlug(title: string): string {
   return title
@@ -14,6 +18,10 @@ function generateSlug(title: string): string {
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .trim();
+}
+
+function getBundleCourses(bundle: Bundle, courses: Course[]): Course[] {
+  return bundle.courseIds.map(id => courses.find(c => c.id === id)).filter(Boolean) as Course[];
 }
 
 const emptyForm = {
@@ -27,7 +35,19 @@ const emptyForm = {
 };
 
 export default function BundleManager() {
-  const [bundleList, setBundleList] = useState<Bundle[]>(mockBundles);
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  const { data: courses = [], isLoading: loadingCourses } = useQuery({
+    queryKey: ['courses'],
+    queryFn: coursesService.getCourses,
+  });
+
+  const { data: bundles = [], isLoading: loadingBundles } = useQuery({
+    queryKey: ['bundles'],
+    queryFn: bundlesService.getBundles,
+  });
+
   const [isEditing, setIsEditing] = useState(false);
   const [editingBundle, setEditingBundle] = useState<Bundle | null>(null);
   const [formData, setFormData] = useState(emptyForm);
@@ -52,8 +72,16 @@ export default function BundleManager() {
     setIsEditing(true);
   };
 
-  const handleDelete = (id: string) => {
-    setBundleList(bundleList.filter(b => b.id !== id));
+  const handleDelete = async (id: string) => {
+    const bundle = bundles.find(b => b.id === id);
+    if (!bundle) return;
+    try {
+      await bundlesService.deleteBundle(bundle.slug);
+      queryClient.invalidateQueries({ queryKey: ['bundles'] });
+      toast.success('Combo eliminado.');
+    } catch {
+      toast.error('Error al eliminar el combo.');
+    }
   };
 
   const handleTitleChange = (title: string) => {
@@ -84,32 +112,51 @@ export default function BundleManager() {
     ? Math.round((1 - formData.price / originalPrice) * 100)
     : 0;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const discountLabel = discountPercentage > 0 ? `${discountPercentage}% OFF` : '';
+    const payload = { ...formData, originalPrice, discountLabel };
 
-    if (editingBundle) {
-      setBundleList(bundleList.map(b =>
-        b.id === editingBundle.id
-          ? { ...b, ...formData, originalPrice, discountLabel }
-          : b
-      ));
-    } else {
-      const newBundle: Bundle = {
-        id: `b-${Date.now()}`,
-        ...formData,
-        originalPrice,
-        discountLabel,
-      };
-      setBundleList([...bundleList, newBundle]);
+    try {
+      if (editingBundle) {
+        await bundlesService.updateBundle(editingBundle.slug, payload);
+        toast.success('Combo actualizado correctamente.');
+      } else {
+        await bundlesService.createBundle(payload);
+        toast.success('Combo creado correctamente.');
+      }
+      queryClient.invalidateQueries({ queryKey: ['bundles'] });
+      setIsEditing(false);
+      setEditingBundle(null);
+    } catch {
+      toast.error('Error al guardar el combo.');
     }
-    setIsEditing(false);
-    setEditingBundle(null);
   };
 
   const handleCancel = () => {
     setIsEditing(false);
     setEditingBundle(null);
   };
+
+  const isLoading = loadingCourses || loadingBundles;
+
+  if (isLoading) {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <div className="h-8 bg-parchment rounded animate-pulse w-40" />
+            <div className="h-4 bg-parchment rounded animate-pulse w-64 mt-2" />
+          </div>
+          <div className="h-10 w-32 bg-parchment rounded-xl animate-pulse" />
+        </div>
+        <div className="space-y-4">
+          {Array.from({ length: 2 }, (_, i) => (
+            <div key={i} className="bg-parchment rounded-xl p-5 border border-chocolate-100/20 h-36 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   /* ── Form View ──────────────────────────────────── */
   if (isEditing) {
@@ -190,8 +237,10 @@ export default function BundleManager() {
                   <input
                     type="checkbox"
                     checked={formData.courseIds.includes(course.id)}
-                    onChange={() => handleCourseToggle(course.id)}
-                    className="w-4 h-4 rounded accent-chocolate"
+                    onChange={e => e.stopPropagation()}
+                    onClick={e => e.stopPropagation()}
+                    readOnly
+                    className="w-4 h-4 rounded accent-chocolate pointer-events-none"
                   />
                   <span className="text-sm text-ink flex-1">{course.title}</span>
                   <span className="text-xs text-ink-light font-medium">{formatPrice(course.price)}</span>
@@ -274,7 +323,7 @@ export default function BundleManager() {
         </button>
       </div>
 
-      {bundleList.length === 0 ? (
+      {bundles.length === 0 ? (
         <div className="text-center py-16">
           <Package className="w-12 h-12 text-ink-light/30 mx-auto mb-4" />
           <p className="text-ink-light text-lg mb-4">No hay combos creados aún.</p>
@@ -285,8 +334,8 @@ export default function BundleManager() {
         </div>
       ) : (
         <div className="space-y-4">
-          {bundleList.map(bundle => {
-            const bundleCourses = getBundleCourses(bundle);
+          {bundles.map(bundle => {
+            const bundleCourses = getBundleCourses(bundle, courses);
             return (
               <div
                 key={bundle.id}
@@ -294,8 +343,10 @@ export default function BundleManager() {
               >
                 <div className="flex flex-col md:flex-row gap-4 p-5">
                   {/* Image */}
-                  <div className="w-full md:w-48 aspect-video md:aspect-[4/3] rounded-lg overflow-hidden shrink-0">
-                    <img src={bundle.imageUrl} alt={bundle.title} className="w-full h-full object-cover" />
+                  <div className="w-full md:w-48 aspect-video md:aspect-[4/3] rounded-lg overflow-hidden shrink-0 bg-chocolate-50">
+                    {bundle.imageUrl && (
+                      <img src={bundle.imageUrl} alt={bundle.title} className="w-full h-full object-cover" />
+                    )}
                   </div>
 
                   {/* Info */}

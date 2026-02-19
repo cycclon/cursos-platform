@@ -1,32 +1,90 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { Clock, AlertCircle, CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
-import { getCourse, testQuestions } from '@/data/mock';
-import RoleSwitcher from '@/components/layout/RoleSwitcher';
+import { coursesService } from '@/services/courses';
+import { testsService } from '@/services/tests';
+import { useToast } from '@/context/ToastContext';
+
 
 type TestState = 'intro' | 'taking' | 'results';
 
 export default function Test() {
   const { courseId } = useParams<{ courseId: string }>();
-  const course = getCourse(courseId ?? '');
-  const questions = testQuestions.filter(q => q.courseId === courseId);
+  const toast = useToast();
+
+  const { data: courses = [], isLoading: loadingCourse } = useQuery({
+    queryKey: ['courses'],
+    queryFn: coursesService.getCourses,
+  });
+
+  const { data: testData, isLoading: loadingQuestions } = useQuery({
+    queryKey: ['test', courseId],
+    queryFn: () => testsService.getTest(courseId!),
+    enabled: !!courseId,
+  });
+
+  const questions = testData?.questions ?? [];
+  const attemptsUsed = testData?.attemptsUsed ?? 0;
+
+  const course = courses.find(c => c.id === courseId);
   const config = course?.testConfig;
 
   const [state, setState] = useState<TestState>('intro');
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [timeLeft, setTimeLeft] = useState((config?.timeLimit ?? 30) * 60);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [result, setResult] = useState<{ passed: boolean; score: number; certificateId?: string } | null>(null);
+
+  const submitMutation = useMutation({
+    mutationFn: () => {
+      return testsService.submitTest(courseId!, answers);
+    },
+    onSuccess: (data) => {
+      setResult(data);
+      setState('results');
+    },
+    onError: () => {
+      toast.error('Error al enviar el examen. Intentá de nuevo.');
+    },
+  });
+
+  // Initialize timer when config loads
+  useEffect(() => {
+    if (config && timeLeft === 0 && state === 'intro') {
+      setTimeLeft(config.timeLimit * 60);
+    }
+  }, [config, timeLeft, state]);
 
   // Timer
   useEffect(() => {
     if (state !== 'taking') return;
     if (timeLeft <= 0) {
-      setState('results');
+      submitMutation.mutate();
       return;
     }
     const timer = setInterval(() => setTimeLeft(t => t - 1), 1000);
     return () => clearInterval(timer);
   }, [state, timeLeft]);
+
+  const isLoading = loadingCourse || loadingQuestions;
+
+  if (isLoading) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-12">
+        <div className="bg-parchment rounded-2xl p-8 border border-chocolate-100/20 shadow-warm-lg">
+          <div className="h-16 w-16 bg-chocolate-50 rounded-2xl animate-pulse mx-auto mb-6" />
+          <div className="h-8 w-64 bg-chocolate-50 rounded animate-pulse mx-auto mb-4" />
+          <div className="h-4 w-48 bg-chocolate-50 rounded animate-pulse mx-auto mb-6" />
+          <div className="grid grid-cols-2 gap-4">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="h-20 bg-cream-dark/50 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!course || !config) {
     return (
@@ -43,11 +101,9 @@ export default function Test() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const correctCount = questions.reduce((sum, q) => {
-    return sum + (answers[q.id] === q.correctAnswer ? 1 : 0);
-  }, 0);
-  const score = Math.round((correctCount / questions.length) * 100);
-  const passed = score >= config.passingScore;
+  const score = result?.score ?? 0;
+  const passed = result?.passed ?? false;
+  const correctCount = result ? Math.round((result.score / 100) * questions.length) : 0;
 
   // Intro screen
   if (state === 'intro') {
@@ -64,7 +120,7 @@ export default function Test() {
             {[
               { label: 'Preguntas', value: `${questions.length}` },
               { label: 'Tiempo límite', value: `${config.timeLimit} minutos` },
-              { label: 'Intentos restantes', value: `${config.maxRetries}` },
+              { label: 'Intentos restantes', value: `${config.maxRetries - attemptsUsed}` },
               { label: 'Para aprobar', value: `${config.passingScore}%` },
             ].map((item, i) => (
               <div key={i} className="bg-cream-dark/50 rounded-xl p-4">
@@ -85,7 +141,6 @@ export default function Test() {
             Comenzar examen
           </button>
         </div>
-        <RoleSwitcher />
       </div>
     );
   }
@@ -138,9 +193,9 @@ export default function Test() {
             >
               Volver a mi panel
             </Link>
-            {passed && (
+            {passed && result?.certificateId && (
               <Link
-                to="/certificado/cert1"
+                to={`/certificado/${result.certificateId}`}
                 className="inline-flex items-center gap-2 btn-primary btn-md rounded-xl"
               >
                 Ver certificado
@@ -149,7 +204,6 @@ export default function Test() {
             )}
           </div>
         </div>
-        <RoleSwitcher />
       </div>
     );
   }
@@ -244,16 +298,16 @@ export default function Test() {
               </button>
             ) : (
               <button
-                onClick={() => setState('results')}
-                className="btn-primary btn-md rounded-xl"
+                onClick={() => submitMutation.mutate()}
+                disabled={submitMutation.isPending}
+                className="btn-primary btn-md rounded-xl disabled:opacity-50"
               >
-                Finalizar examen
+                {submitMutation.isPending ? 'Enviando...' : 'Finalizar examen'}
               </button>
             )}
           </div>
         </div>
       )}
-      <RoleSwitcher />
     </div>
   );
 }

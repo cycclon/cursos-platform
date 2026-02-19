@@ -1,12 +1,22 @@
 import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
-import { courses, getCategories } from '@/data/mock';
+import { coursesService } from '@/services/courses';
 import CourseCard from '@/components/course/CourseCard';
 
 export default function Catalog() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('Todos');
-  const categories = ['Todos', ...getCategories()];
+
+  const { data: courses = [], isLoading } = useQuery({
+    queryKey: ['courses'],
+    queryFn: coursesService.getCourses,
+  });
+
+  const categories = useMemo(() => {
+    const cats = [...new Set(courses.map(c => c.category))];
+    return ['Todos', ...cats];
+  }, [courses]);
 
   const filtered = useMemo(() => {
     return courses.filter(c => {
@@ -15,7 +25,7 @@ export default function Catalog() {
       const matchesCategory = category === 'Todos' || c.category === category;
       return matchesSearch && matchesCategory;
     });
-  }, [search, category]);
+  }, [courses, search, category]);
 
   return (
     <div>
@@ -63,7 +73,20 @@ export default function Catalog() {
         </div>
 
         {/* Results */}
-        {filtered.length > 0 ? (
+        {isLoading ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }, (_, i) => (
+              <div key={i} className="bg-parchment rounded-xl overflow-hidden">
+                <div className="aspect-[16/10] bg-chocolate-50 animate-pulse" />
+                <div className="p-5 space-y-3">
+                  <div className="h-4 bg-chocolate-50 rounded animate-pulse w-1/4" />
+                  <div className="h-5 bg-chocolate-50 rounded animate-pulse w-3/4" />
+                  <div className="h-4 bg-chocolate-50 rounded animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filtered.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
             {filtered.map(course => (
               <CourseCard key={course.id} course={course} />

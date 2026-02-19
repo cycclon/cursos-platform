@@ -1,11 +1,42 @@
+import { useQuery } from '@tanstack/react-query';
 import { BarChart3, Users, Eye, Star, DollarSign } from 'lucide-react';
-import { salesData, courseStats, formatPrice } from '@/data/mock';
+import { statisticsService } from '@/services/statistics';
+import { formatPrice } from '@/utils/format';
 
 export default function Statistics() {
+  const { data: salesData = [], isLoading: loadingSales } = useQuery({
+    queryKey: ['statistics', 'sales'],
+    queryFn: statisticsService.getSalesData,
+  });
+
+  const { data: courseStats = [], isLoading: loadingStats } = useQuery({
+    queryKey: ['statistics', 'courses'],
+    queryFn: statisticsService.getCourseStats,
+  });
+
+  const isLoading = loadingSales || loadingStats;
+
+  if (isLoading) {
+    return (
+      <div>
+        <div className="mb-8">
+          <div className="h-8 bg-parchment rounded animate-pulse w-40" />
+          <div className="h-4 bg-parchment rounded animate-pulse w-64 mt-2" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="bg-parchment rounded-xl p-5 border border-chocolate-100/20 h-28 animate-pulse" />
+          ))}
+        </div>
+        <div className="bg-parchment rounded-xl p-6 border border-chocolate-100/20 h-64 animate-pulse" />
+      </div>
+    );
+  }
+
   const totalViews = courseStats.reduce((sum, c) => sum + c.views, 0);
   const totalEnrollments = courseStats.reduce((sum, c) => sum + c.enrollments, 0);
   const totalRevenue = salesData.reduce((sum, d) => sum + d.revenue, 0);
-  const avgRating = courseStats.reduce((sum, c) => sum + c.avgRating, 0) / courseStats.length;
+  const avgRating = courseStats.length > 0 ? courseStats.reduce((sum, c) => sum + c.avgRating, 0) / courseStats.length : 0;
 
   return (
     <div>
