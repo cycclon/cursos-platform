@@ -1,12 +1,13 @@
 import { useParams, Link } from 'react-router-dom';
 import {
   Clock, Users, BookOpen, Award, ShieldCheck, Lock, Play,
-  FileText, ChevronDown, ChevronUp, ArrowRight, CheckCircle2,
+  FileText, ChevronDown, ChevronUp, ArrowRight, CheckCircle2, Loader2,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { coursesService } from '@/services/courses';
 import { enrollmentsService } from '@/services/enrollments';
+import { paymentsService } from '@/services/payments';
 import CourseImage from '@/components/ui/CourseImage';
 import { reviewsService } from '@/services/reviews';
 import { formatPrice } from '@/utils/format';
@@ -33,24 +34,45 @@ export default function CourseDetail() {
   });
 
   const isEnrolled = enrollments.some(e => e.courseId === course?.id);
+  const [enrolling, setEnrolling] = useState(false);
 
   const handleEnroll = async () => {
     if (!isAuthenticated) {
       toast.error('Iniciá sesión para inscribirte');
       return;
     }
-    try {
-      await enrollmentsService.createEnrollment(course!.id);
-      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
-      toast.success('¡Inscripción exitosa! Ya podés acceder al curso.');
-    } catch (err: unknown) {
-      const error = err as { status?: number };
-      if (error.status === 409) {
+
+    const effectivePrice = course!.discountPrice ?? course!.price;
+
+    // Free course → direct enrollment
+    if (effectivePrice === 0) {
+      setEnrolling(true);
+      try {
+        await enrollmentsService.createEnrollment(course!.id);
         queryClient.invalidateQueries({ queryKey: ['enrollments'] });
-        toast.success('Ya estás inscrito en este curso.');
-      } else {
-        toast.error('Error al procesar la inscripción');
+        toast.success('¡Inscripción exitosa! Ya podés acceder al curso.');
+      } catch (err: unknown) {
+        const error = err as { status?: number };
+        if (error.status === 409) {
+          queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+          toast.success('Ya estás inscrito en este curso.');
+        } else {
+          toast.error('Error al procesar la inscripción');
+        }
+      } finally {
+        setEnrolling(false);
       }
+      return;
+    }
+
+    // Paid course → Mercado Pago
+    setEnrolling(true);
+    try {
+      const { initPoint } = await paymentsService.createPreference({ courseId: course!.id });
+      window.location.href = initPoint;
+    } catch {
+      toast.error('Error al iniciar el pago. Intentá de nuevo.');
+      setEnrolling(false);
     }
   };
 
@@ -158,9 +180,10 @@ export default function CourseDetail() {
               ) : (
                 <button
                   onClick={handleEnroll}
-                  className="btn-primary btn-lg btn-full rounded-xl"
+                  disabled={enrolling}
+                  className="btn-primary btn-lg btn-full rounded-xl disabled:opacity-60"
                 >
-                  Inscribirme ahora
+                  {enrolling ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Inscribirme ahora'}
                 </button>
               )}
 

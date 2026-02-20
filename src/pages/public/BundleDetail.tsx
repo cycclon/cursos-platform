@@ -5,6 +5,7 @@ import { BookOpen, Award, ArrowRight, Package, CheckCircle2, ShieldCheck, AlertT
 import { bundlesService } from '@/services/bundles';
 import { coursesService } from '@/services/courses';
 import { enrollmentsService } from '@/services/enrollments';
+import { paymentsService } from '@/services/payments';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { formatPrice } from '@/utils/format';
@@ -55,20 +56,32 @@ export default function BundleDetail() {
       return;
     }
 
+    // Free bundle → direct enrollment
+    if (bundle!.price === 0) {
+      setEnrolling(true);
+      try {
+        const toEnroll = bundleCourses.filter(c => !enrolledCourseIds.has(c.id));
+        await Promise.all(toEnroll.map(c =>
+          enrollmentsService.createEnrollment(c.id).catch(() => {}),
+        ));
+        queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+        toast.success(`¡Inscripción exitosa! Se agregaron ${toEnroll.length} curso${toEnroll.length === 1 ? '' : 's'}.`);
+        setShowConfirm(false);
+      } catch {
+        toast.error('Error al procesar la inscripción.');
+      } finally {
+        setEnrolling(false);
+      }
+      return;
+    }
+
+    // Paid bundle → Mercado Pago
     setEnrolling(true);
     try {
-      const toEnroll = bundleCourses.filter(c => !enrolledCourseIds.has(c.id));
-      await Promise.all(toEnroll.map(c =>
-        enrollmentsService.createEnrollment(c.id).catch(() => {
-          // Ignore 409 (already enrolled)
-        }),
-      ));
-      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
-      toast.success(`¡Inscripción exitosa! Se agregaron ${toEnroll.length} curso${toEnroll.length === 1 ? '' : 's'}.`);
-      setShowConfirm(false);
+      const { initPoint } = await paymentsService.createPreference({ bundleId: bundle!.id });
+      window.location.href = initPoint;
     } catch {
-      toast.error('Error al procesar la inscripción.');
-    } finally {
+      toast.error('Error al iniciar el pago. Intentá de nuevo.');
       setEnrolling(false);
     }
   };

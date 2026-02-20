@@ -67,7 +67,7 @@ export default function TeacherDashboard() {
           },
           {
             icon: Users, label: 'Estudiantes', value: totalStudents.toString(),
-            change: '+12%', up: true, color: 'text-gold bg-gold/10',
+            change: '', up: true, color: 'text-gold bg-gold/10',
           },
           {
             icon: BookOpen, label: 'Cursos activos', value: courses.length.toString(),
@@ -75,7 +75,7 @@ export default function TeacherDashboard() {
           },
           {
             icon: Star, label: 'Valoración promedio', value: avgRating.toFixed(1),
-            change: '+0.1', up: true, color: 'text-gold bg-gold/10',
+            change: '', up: true, color: 'text-gold bg-gold/10',
           },
         ].map((stat, i) => {
           const Icon = stat.icon;
