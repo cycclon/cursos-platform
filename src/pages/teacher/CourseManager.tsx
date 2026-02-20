@@ -213,10 +213,17 @@ export default function CourseManager() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Auto-calculate discount label if not set
+      let computedDiscountLabel = formData.discountLabel || undefined;
+      if (!computedDiscountLabel && formData.discountPrice && formData.price > 0) {
+        const pct = Math.round((1 - formData.discountPrice / formData.price) * 100);
+        if (pct > 0) computedDiscountLabel = `${pct}% OFF`;
+      }
+
       const payload = {
         ...formData,
         discountPrice: formData.discountPrice || undefined,
-        discountLabel: formData.discountLabel || undefined,
+        discountLabel: computedDiscountLabel,
         testConfig: formData.hasTest ? formData.testConfig : undefined,
         moneyBackGuarantee: formData.moneyBackGuarantee || undefined,
       };
@@ -603,7 +610,7 @@ export default function CourseManager() {
                       ...prev,
                       videos: prev.videos.map((v, i) => i === vi ? { ...v, url: e.target.value } : v),
                     }))}
-                    placeholder="URL del video (YouTube, Vimeo, etc.)"
+                    placeholder="URL del contenido (YouTube, Vimeo, Prezi, etc.)"
                     className={`${INPUT} text-xs`}
                   />
                   <input

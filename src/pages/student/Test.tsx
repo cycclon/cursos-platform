@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Clock, AlertCircle, CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
 import { coursesService } from '@/services/courses';
 import { testsService } from '@/services/tests';
@@ -12,6 +12,7 @@ type TestState = 'intro' | 'taking' | 'results';
 export default function Test() {
   const { courseId } = useParams<{ courseId: string }>();
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   const { data: courses = [], isLoading: loadingCourse } = useQuery({
     queryKey: ['courses'],
@@ -43,6 +44,7 @@ export default function Test() {
     onSuccess: (data) => {
       setResult(data);
       setState('results');
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
     },
     onError: () => {
       toast.error('Error al enviar el examen. Intentá de nuevo.');

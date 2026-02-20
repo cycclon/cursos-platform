@@ -1,4 +1,4 @@
-export type VideoProvider = 'youtube' | 'vimeo' | 'direct';
+export type VideoProvider = 'youtube' | 'vimeo' | 'prezi' | 'direct';
 
 /**
  * Detects the video provider from a URL
@@ -8,11 +8,30 @@ export function getVideoProvider(url: string): VideoProvider {
 
   const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/;
   const vimeoRegex = /^(https?:\/\/)?(www\.)?vimeo\.com\/.+$/;
+  const preziRegex = /^(https?:\/\/)?(www\.)?prezi\.com\/.+$/;
 
   if (youtubeRegex.test(url)) return 'youtube';
   if (vimeoRegex.test(url)) return 'vimeo';
+  if (preziRegex.test(url)) return 'prezi';
 
   return 'direct';
+}
+
+/**
+ * Gets the embed URL for a Prezi presentation
+ * Accepts URLs like:
+ *   https://prezi.com/p/PRESENTATION_ID/
+ *   https://prezi.com/p/embed/PRESENTATION_ID/
+ *   https://prezi.com/v/PRESENTATION_ID/
+ */
+export function getPreziEmbedUrl(url: string): string {
+  if (!url) return '';
+  // Already an embed URL
+  if (url.includes('/p/embed/')) return url;
+  // Extract ID from /p/ID/ or /v/ID/ patterns
+  const match = url.match(/prezi\.com\/(?:p|v)\/([^/]+)/);
+  if (match) return `https://prezi.com/p/embed/${match[1]}/`;
+  return '';
 }
 
 /**

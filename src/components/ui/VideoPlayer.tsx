@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { Play, CheckCircle2 } from 'lucide-react';
-import { getVideoProvider } from '@/utils/video';
+import { getVideoProvider, getPreziEmbedUrl } from '@/utils/video';
 
 const SAVE_INTERVAL_MS = 10_000; // Report progress every 10 seconds
 const TICK_INTERVAL_MS = 1_000;  // Internal tracking tick
@@ -423,6 +423,27 @@ export default function VideoPlayer({
           </div>
           <p className="text-cream-dark/60">Este módulo no tiene video</p>
         </div>
+      </div>
+    );
+  }
+
+  // Prezi embed — no progress tracking, just an iframe
+  if (provider === 'prezi') {
+    const embedUrl = getPreziEmbedUrl(url);
+    return (
+      <div className="w-full h-full bg-ink">
+        {embedUrl ? (
+          <iframe
+            src={embedUrl}
+            className="w-full h-full border-0"
+            allowFullScreen
+            allow="autoplay; fullscreen"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <p className="text-cream-dark/60">URL de Prezi no válida</p>
+          </div>
+        )}
       </div>
     );
   }

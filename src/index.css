@@ -390,18 +390,25 @@ datalist option:checked {
 
 /* Print styles for certificate */
 @media print {
+  @page {
+    size: landscape;
+    margin: 0;
+  }
   body::before {
     display: none;
   }
   .no-print,
   header,
-  footer {
+  footer,
+  nav {
     display: none !important;
   }
   body, html {
     background: white !important;
     margin: 0 !important;
     padding: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
   }
   .print-certificate {
     margin: 0 !important;
@@ -409,10 +416,19 @@ datalist option:checked {
     max-width: none !important;
     border: none !important;
     box-shadow: none !important;
+    width: 100% !important;
+    height: 100vh !important;
+    overflow: hidden !important;
   }
   .print-certificate-card {
     border-radius: 0 !important;
     box-shadow: none !important;
+    border: none !important;
     break-inside: avoid;
+    height: 100vh !important;
+    overflow: hidden !important;
+  }
+  .print-certificate-card > div:not(.h-2) {
+    padding: 6vh 8vw !important;
   }
 }
