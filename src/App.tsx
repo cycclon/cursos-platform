@@ -17,6 +17,9 @@ import Bundles from './pages/public/Bundles'
 import BundleDetail from './pages/public/BundleDetail'
 import Login from './pages/public/Login'
 import Register from './pages/public/Register'
+import Terms from './pages/public/Terms'
+import Privacy from './pages/public/Privacy'
+import Refund from './pages/public/Refund'
 
 // Student pages
 import StudentDashboard from './pages/student/Dashboard'
@@ -30,6 +33,7 @@ import CourseManager from './pages/teacher/CourseManager'
 import BundleManager from './pages/teacher/BundleManager'
 import Statistics from './pages/teacher/Statistics'
 import FaqManager from './pages/teacher/FaqManager'
+import ReviewsManager from './pages/teacher/ReviewsManager'
 
 // Admin pages
 import SuperuserPanel from './pages/admin/SuperuserPanel'
@@ -78,6 +82,9 @@ export default function App() {
           <Route path="/preguntas-frecuentes" element={<Faq />} />
           <Route path="/ingresar" element={<Login />} />
           <Route path="/registrarse" element={<Register />} />
+          <Route path="/terminos-y-condiciones" element={<Terms />} />
+          <Route path="/politica-de-privacidad" element={<Privacy />} />
+          <Route path="/politica-de-reembolso" element={<Refund />} />
         </Route>
 
         {/* Student routes */}
@@ -100,6 +107,7 @@ export default function App() {
           <Route path="/admin/cursos" element={<CourseManager />} />
           <Route path="/admin/combos" element={<BundleManager />} />
           <Route path="/admin/faq" element={<FaqManager />} />
+          <Route path="/admin/opiniones" element={<ReviewsManager />} />
           <Route path="/admin/estadisticas" element={<Statistics />} />
         </Route>
 

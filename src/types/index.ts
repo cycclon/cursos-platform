@@ -15,6 +15,8 @@ export interface Teacher {
   photoUrl: string;
   credentials: string[];
   videoUrl?: string;
+  showStudentCount?: boolean;
+  totalStudents?: number;
 }
 
 export interface ModuleVideo {
@@ -102,6 +104,7 @@ export interface Question {
 export interface Review {
   id: string;
   courseId: string;
+  studentId?: string;
   studentName: string;
   studentAvatar?: string;
   rating: number;
@@ -115,6 +118,7 @@ export interface Review {
   date: string;
   teacherReply?: string;
   teacherReplyDate?: string;
+  courseTitle?: string;
 }
 
 export interface VideoProgress {

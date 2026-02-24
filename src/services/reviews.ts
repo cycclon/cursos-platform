@@ -7,4 +7,6 @@ export const reviewsService = {
     api.post<Review>('/reviews', data),
   replyToReview: (reviewId: string, reply: string) =>
     api.post<Review>(`/reviews/${reviewId}/reply`, { reply }),
+  getMyReviewedCourses: () => api.get<string[]>('/reviews/mine'),
+  getTeacherReviews: () => api.get<Review[]>('/reviews/teacher'),
 };

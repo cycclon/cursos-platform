@@ -35,8 +35,22 @@ export default function Landing() {
   });
 
   const featured = courses.filter(c => c.featured);
-  const totalStudents = courses.reduce((sum, c) => sum + c.studentCount, 0);
+  const totalStudents = teacher?.totalStudents ?? 0;
   const featuredBundles = bundles.filter(b => b.featured);
+
+  const coursesWithReviews = courses.filter(c => c.reviewCount > 0);
+  const avgRating = coursesWithReviews.length > 0
+    ? coursesWithReviews.reduce((sum, c) => sum + c.rating * c.reviewCount, 0)
+      / coursesWithReviews.reduce((sum, c) => sum + c.reviewCount, 0)
+    : 0;
+  const avgRatingDisplay = avgRating > 0 ? avgRating.toFixed(1) : '—';
+
+  const statsBarItems = [
+    { icon: BookOpen, value: `${courses.length}`, label: 'Cursos disponibles' },
+    ...(teacher?.showStudentCount ? [{ icon: Users, value: `+${totalStudents}`, label: 'Estudiantes' }] : []),
+    { icon: Award, value: '100%', label: 'Contenido original' },
+    ...(avgRating > 0 ? [{ icon: Star, value: avgRatingDisplay, label: 'Valoración promedio' }] : []),
+  ];
 
   return (
     <div>
@@ -85,18 +99,20 @@ export default function Landing() {
                     <p className="text-sm text-cream-dark/80">{teacher.title}</p>
                   </div>
                 </div>
-                {/* Floating stat card */}
-                <div className="absolute -left-8 bottom-20 bg-parchment rounded-xl shadow-warm-lg p-4 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center">
-                      <Star className="w-5 h-5 text-gold fill-gold" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-ink">4.7</p>
-                      <p className="text-xs text-ink-light">Valoración promedio</p>
+                {/* Floating stat card — only when ratings exist */}
+                {avgRating > 0 && (
+                  <div className="absolute -left-8 bottom-20 bg-parchment rounded-xl shadow-warm-lg p-4 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center">
+                        <Star className="w-5 h-5 text-gold fill-gold" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-ink">{avgRatingDisplay}</p>
+                        <p className="text-xs text-ink-light">Valoración promedio</p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
           </div>
@@ -106,13 +122,8 @@ export default function Landing() {
       {/* ── Stats Bar ─────────────────────────────────── */}
       <section className="bg-chocolate">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            {[
-              { icon: BookOpen, value: `${courses.length}`, label: 'Cursos disponibles' },
-              { icon: Users, value: totalStudents > 0 ? `+${totalStudents}` : '...', label: 'Estudiantes' },
-              { icon: Award, value: '100%', label: 'Contenido original' },
-              { icon: Star, value: '4.7', label: 'Valoración promedio' },
-            ].map((stat, i) => {
+          <div className={`grid grid-cols-2 ${statsBarItems.length === 4 ? 'md:grid-cols-4' : statsBarItems.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-6 text-center`}>
+            {statsBarItems.map((stat, i) => {
               const Icon = stat.icon;
               return (
                 <div key={i} className="text-cream">

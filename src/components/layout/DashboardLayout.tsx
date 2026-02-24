@@ -6,7 +6,7 @@ import { coursesService } from '@/services/courses';
 import { bundlesService } from '@/services/bundles';
 import {
   LayoutDashboard, BookOpen, BarChart3,
-  ChevronRight, Package, HelpCircle,
+  ChevronRight, Package, HelpCircle, MessageSquare,
 } from 'lucide-react';
 
 export default function DashboardLayout() {
@@ -33,6 +33,7 @@ export default function DashboardLayout() {
     { to: '/admin/cursos', label: 'Mis Cursos', icon: BookOpen },
     ...(hasMultipleCourses || hasCombos ? [{ to: '/admin/combos', label: 'Combos', icon: Package }] : []),
     { to: '/admin/faq', label: 'FAQ', icon: HelpCircle },
+    { to: '/admin/opiniones', label: 'Opiniones', icon: MessageSquare },
     { to: '/admin/estadisticas', label: 'Estadísticas', icon: BarChart3 },
   ];
 

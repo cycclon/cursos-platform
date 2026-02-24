@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import {
-  Clock, Users, BookOpen, Award, ShieldCheck, Lock, Play,
-  FileText, ChevronDown, ChevronUp, ArrowRight, CheckCircle2, Loader2,
+  Clock, Users, BookOpen, Award, ShieldCheck, Lock, Play, Star,
+  FileText, ChevronDown, ChevronUp, ArrowRight, CheckCircle2, Loader2, Send,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -83,6 +83,60 @@ export default function CourseDetail() {
   });
 
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
+
+  // Review form state
+  const enrollment = enrollments.find(e => e.courseId === course?.id);
+  const hasCompleted = enrollment?.progress === 100;
+  const hasReviewed = reviews.some(r => r.studentId === user?.id);
+  const canReview = isAuthenticated && role === 'student' && hasCompleted && !hasReviewed;
+
+  const [reviewForm, setReviewForm] = useState({
+    contenido: 0,
+    claridad: 0,
+    material: 0,
+    valorPrecio: 0,
+    comment: '',
+  });
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  const categoryLabels: Record<string, string> = {
+    contenido: 'Contenido',
+    claridad: 'Claridad',
+    material: 'Material',
+    valorPrecio: 'Valor/Precio',
+  };
+
+  const allCategoriesRated = reviewForm.contenido > 0 && reviewForm.claridad > 0
+    && reviewForm.material > 0 && reviewForm.valorPrecio > 0;
+
+  const handleSubmitReview = async () => {
+    if (!allCategoriesRated || !reviewForm.comment.trim()) return;
+
+    const { contenido, claridad, material, valorPrecio, comment } = reviewForm;
+    const rating = Math.round(((contenido + claridad + material + valorPrecio) / 4) * 10) / 10;
+
+    setSubmittingReview(true);
+    try {
+      await reviewsService.createReview({
+        courseId: course!.id,
+        rating,
+        categories: { contenido, claridad, material, valorPrecio },
+        comment,
+      });
+      queryClient.invalidateQueries({ queryKey: ['reviews', course!.id] });
+      queryClient.invalidateQueries({ queryKey: ['courses', slug] });
+      toast.success('¡Gracias por tu opinión!');
+    } catch (err: unknown) {
+      const error = err as { status?: number };
+      if (error.status === 409) {
+        toast.error('Ya dejaste una opinión para este curso.');
+      } else {
+        toast.error('Error al enviar la opinión.');
+      }
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -324,7 +378,64 @@ export default function CourseDetail() {
             {/* Reviews */}
             <div>
               <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">Opiniones</h2>
+
+              {/* Student review form */}
+              {canReview && (
+                <div className="mt-6 mb-6 bg-parchment rounded-xl p-6 border-2 border-gold/30 shadow-warm">
+                  <div className="flex items-center gap-2 mb-5">
+                    <Star className="w-5 h-5 text-gold fill-gold" />
+                    <h3 className="font-display text-lg font-bold text-ink">Dejá tu opinión</h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                    {(Object.keys(categoryLabels) as Array<keyof typeof categoryLabels>).map(key => (
+                      <div key={key} className="flex items-center justify-between bg-cream-dark/40 rounded-lg px-4 py-3">
+                        <span className="text-sm font-medium text-ink">{categoryLabels[key]}</span>
+                        <StarRating
+                          rating={reviewForm[key as keyof typeof reviewForm] as number}
+                          size="md"
+                          interactive
+                          onChange={val => setReviewForm(prev => ({ ...prev, [key]: val }))}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <textarea
+                    value={reviewForm.comment}
+                    onChange={e => setReviewForm(prev => ({ ...prev, comment: e.target.value }))}
+                    placeholder="Contanos tu experiencia con el curso..."
+                    rows={4}
+                    disabled={submittingReview}
+                    className="w-full px-4 py-3 rounded-lg border border-chocolate-100/30 bg-cream text-sm text-ink placeholder:text-ink-light/50 focus:outline-none focus:ring-2 focus:ring-gold/30 focus:border-gold/50 resize-none disabled:opacity-50 transition-all"
+                  />
+
+                  <div className="flex items-center justify-between mt-4">
+                    <p className="text-xs text-ink-light">
+                      {allCategoriesRated
+                        ? `Valoración general: ${((reviewForm.contenido + reviewForm.claridad + reviewForm.material + reviewForm.valorPrecio) / 4).toFixed(1)} / 5`
+                        : 'Calificá todas las categorías para continuar'}
+                    </p>
+                    <button
+                      onClick={handleSubmitReview}
+                      disabled={submittingReview || !allCategoriesRated || !reviewForm.comment.trim()}
+                      className="inline-flex items-center gap-2 btn-primary btn-sm rounded-lg disabled:opacity-50 transition-opacity"
+                    >
+                      {submittingReview ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-3.5 h-3.5" />
+                      )}
+                      {submittingReview ? 'Enviando...' : 'Enviar opinión'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-4 mt-6">
+                {reviews.length === 0 && !canReview && (
+                  <p className="text-sm text-ink-light py-4">Aún no hay opiniones para este curso.</p>
+                )}
                 {reviews.map(review => (
                   <div key={review.id} className="bg-parchment rounded-xl p-5 border border-chocolate-100/20">
                     <div className="flex items-center justify-between mb-3">
@@ -338,16 +449,6 @@ export default function CourseDetail() {
                         </div>
                       </div>
                       <StarRating rating={review.rating} size="sm" />
-                    </div>
-
-                    {/* Category ratings */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
-                      {Object.entries(review.categories).map(([key, val]) => (
-                        <div key={key} className="flex items-center justify-between text-xs bg-cream-dark/50 rounded-lg px-2.5 py-1.5">
-                          <span className="text-ink-light capitalize">{key === 'valorPrecio' ? 'Valor/Precio' : key}</span>
-                          <span className="font-semibold text-ink">{val}/5</span>
-                        </div>
-                      ))}
                     </div>
 
                     <p className="text-sm text-ink-light leading-relaxed">{review.comment}</p>

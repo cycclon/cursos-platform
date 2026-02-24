@@ -1,13 +1,21 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   DollarSign, Users, BookOpen, Star, TrendingUp,
   ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
 import { coursesService } from '@/services/courses';
 import { statisticsService } from '@/services/statistics';
+import { teacherService } from '@/services/teacher';
 import { formatPrice } from '@/utils/format';
 
 export default function TeacherDashboard() {
+  const queryClient = useQueryClient();
+
+  const { data: teacher } = useQuery({
+    queryKey: ['teacher'],
+    queryFn: teacherService.getTeacher,
+  });
+
   const { data: courses = [], isLoading: loadingCourses } = useQuery({
     queryKey: ['courses'],
     queryFn: coursesService.getCourses,
@@ -43,7 +51,7 @@ export default function TeacherDashboard() {
   }
 
   const totalRevenue = salesData.reduce((sum, d) => sum + d.revenue, 0);
-  const totalStudents = courses.reduce((sum, c) => sum + c.studentCount, 0);
+  const totalStudents = teacher?.totalStudents ?? 0;
   const avgRating = courses.length > 0 ? courses.reduce((sum, c) => sum + c.rating, 0) / courses.length : 0;
   const lastMonth = salesData[salesData.length - 1];
   const prevMonth = salesData[salesData.length - 2];
@@ -97,6 +105,32 @@ export default function TeacherDashboard() {
             </div>
           );
         })}
+      </div>
+
+      {/* Landing visibility toggle */}
+      <div className="bg-parchment rounded-xl p-4 border border-chocolate-100/20 shadow-warm mb-8 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold text-ink">Mostrar cantidad de estudiantes en la landing</p>
+          <p className="text-xs text-ink-light mt-0.5">
+            {teacher?.showStudentCount
+              ? `Se muestra: +${totalStudents} estudiantes`
+              : 'Oculto en la página principal'}
+          </p>
+        </div>
+        <button
+          onClick={async () => {
+            const newValue = !teacher?.showStudentCount;
+            await teacherService.updateTeacher({ showStudentCount: newValue });
+            queryClient.invalidateQueries({ queryKey: ['teacher'] });
+          }}
+          className={`relative w-11 h-6 rounded-full transition-colors ${
+            teacher?.showStudentCount ? 'bg-success' : 'bg-chocolate-100/40'
+          }`}
+        >
+          <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-cream shadow transition-transform ${
+            teacher?.showStudentCount ? 'translate-x-5' : ''
+          }`} />
+        </button>
       </div>
 
       {/* Revenue chart (simple bar chart) */}

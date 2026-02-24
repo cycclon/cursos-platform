@@ -213,9 +213,9 @@ export default function CourseManager() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Auto-calculate discount label if not set
-      let computedDiscountLabel = formData.discountLabel || undefined;
-      if (!computedDiscountLabel && formData.discountPrice && formData.price > 0) {
+      // Auto-calculate discount label
+      let computedDiscountLabel: string | undefined;
+      if (formData.discountPrice && formData.price > 0 && formData.discountPrice < formData.price) {
         const pct = Math.round((1 - formData.discountPrice / formData.price) * 100);
         if (pct > 0) computedDiscountLabel = `${pct}% OFF`;
       }
@@ -877,16 +877,11 @@ export default function CourseManager() {
                   </div>
                 </div>
               </div>
-              <div className="max-w-sm">
-                <label className="block text-sm font-medium text-ink mb-1.5">Etiqueta de descuento</label>
-                <input
-                  type="text"
-                  value={formData.discountLabel}
-                  onChange={e => setFormData(prev => ({ ...prev, discountLabel: e.target.value }))}
-                  placeholder="Ej: 20% OFF"
-                  className={INPUT}
-                />
-              </div>
+              {formData.discountPrice && formData.price > 0 && formData.discountPrice < formData.price && (
+                <p className="text-sm text-success font-medium">
+                  Descuento: {Math.round((1 - formData.discountPrice / formData.price) * 100)}% OFF
+                </p>
+              )}
             </div>
           </div>
 

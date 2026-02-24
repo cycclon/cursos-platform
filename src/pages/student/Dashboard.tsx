@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, Clock, Award, ArrowRight, Play } from 'lucide-react';
+import { BookOpen, Clock, Award, ArrowRight, Play, MessageSquare } from 'lucide-react';
 import { enrollmentsService } from '@/services/enrollments';
 import { certificatesService } from '@/services/certificates';
 import { coursesService } from '@/services/courses';
+import { reviewsService } from '@/services/reviews';
 import { useAuth } from '@/context/AuthContext';
 import CourseImage from '@/components/ui/CourseImage';
 
@@ -23,6 +24,11 @@ export default function StudentDashboard() {
   const { data: courses = [], isLoading: loadingCourses } = useQuery({
     queryKey: ['courses'],
     queryFn: coursesService.getCourses,
+  });
+
+  const { data: reviewedCourseIds = [] } = useQuery({
+    queryKey: ['my-reviewed-courses'],
+    queryFn: reviewsService.getMyReviewedCourses,
   });
 
   const isLoading = loadingEnrollments || loadingCertificates || loadingCourses;
@@ -153,6 +159,15 @@ export default function StudentDashboard() {
                       >
                         Rendir examen
                         <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    )}
+                    {enrollment.progress === 100 && !reviewedCourseIds.includes(course.id) && (
+                      <Link
+                        to={`/cursos/${course.slug}#opiniones`}
+                        className="inline-flex items-center gap-1.5 text-sm text-gold font-medium hover:text-chocolate transition-colors"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        Dejar opinión
                       </Link>
                     )}
                   </div>
