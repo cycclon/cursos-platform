@@ -6,7 +6,7 @@ import { coursesService } from '@/services/courses';
 import { bundlesService } from '@/services/bundles';
 import {
   LayoutDashboard, BookOpen, BarChart3,
-  ChevronRight, Package, HelpCircle, MessageSquare,
+  ChevronRight, Package, HelpCircle, MessageSquare, UserCircle,
 } from 'lucide-react';
 
 export default function DashboardLayout() {
@@ -29,6 +29,7 @@ export default function DashboardLayout() {
   const hasCombos = bundles.length > 0;
 
   const teacherLinks = [
+    { to: '/admin/perfil', label: 'Mi Perfil', icon: UserCircle },
     { to: '/admin/panel', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/admin/cursos', label: 'Mis Cursos', icon: BookOpen },
     ...(hasMultipleCourses || hasCombos ? [{ to: '/admin/combos', label: 'Combos', icon: Package }] : []),

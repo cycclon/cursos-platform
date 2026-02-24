@@ -34,6 +34,7 @@ import BundleManager from './pages/teacher/BundleManager'
 import Statistics from './pages/teacher/Statistics'
 import FaqManager from './pages/teacher/FaqManager'
 import ReviewsManager from './pages/teacher/ReviewsManager'
+import ProfileSettings from './pages/teacher/ProfileSettings'
 
 // Admin pages
 import SuperuserPanel from './pages/admin/SuperuserPanel'
@@ -103,6 +104,7 @@ export default function App() {
 
         {/* Teacher routes */}
         <Route element={<DashboardLayout />}>
+          <Route path="/admin/perfil" element={<ProfileSettings />} />
           <Route path="/admin/panel" element={<TeacherDashboard />} />
           <Route path="/admin/cursos" element={<CourseManager />} />
           <Route path="/admin/combos" element={<BundleManager />} />
