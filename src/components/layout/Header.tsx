@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Menu, X, BookOpen, User, LogIn, LogOut } from 'lucide-react';
+import { Menu, X, User, LogIn, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { bundlesService } from '@/services/bundles';
@@ -63,12 +63,14 @@ export default function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-9 h-9 bg-chocolate rounded-lg flex items-center justify-center group-hover:bg-chocolate-dark transition-colors">
-              <BookOpen className="w-5 h-5 text-cream" />
-            </div>
+            <img
+              src="/logo.png"
+              alt="Academia de Litigación"
+              className="w-9 h-9 object-contain group-hover:scale-105 transition-transform"
+            />
             <div className="hidden sm:block">
-              <span className="font-display text-lg font-bold text-ink">Dra. Vidal</span>
-              <span className="text-xs text-ink-light block -mt-1 tracking-wide">Cursos de Derecho</span>
+              <span className="font-display text-lg font-bold text-ink leading-tight">Academia de Litigación</span>
+              <span className="text-xs text-ink-light block -mt-0.5 tracking-wide">Dra. Flamini</span>
             </div>
           </Link>
 

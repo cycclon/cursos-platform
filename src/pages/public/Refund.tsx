@@ -23,7 +23,7 @@ export default function Refund() {
             <h2 className="font-display text-xl font-bold text-ink mb-3">1. Alcance</h2>
             <p>
               Esta Política de Reembolso aplica a todos los cursos y combos adquiridos a través
-              de la plataforma de la Dra. Marcela Vidal. Al realizar una compra, el estudiante
+              de la plataforma de la Dra. Gisela Flamini. Al realizar una compra, el estudiante
               acepta las condiciones aquí detalladas.
             </p>
           </section>

@@ -19,7 +19,7 @@ export default function Privacy() {
           <section>
             <h2 className="font-display text-xl font-bold text-ink mb-3">1. Responsable del Tratamiento</h2>
             <p>
-              La responsable del tratamiento de los datos personales es la Dra. Marcela Vidal,
+              La responsable del tratamiento de los datos personales es la Dra. Gisela Flamini,
               con domicilio en la República Argentina y correo electrónico de contacto:{' '}
               <a href="mailto:contacto@cursosderecho.com" className="text-chocolate font-medium hover:text-chocolate-dark transition-colors">
                 contacto@cursosderecho.com

@@ -455,7 +455,7 @@ export default function CourseDetail() {
 
                     {review.teacherReply && (
                       <div className="mt-3 ml-4 pl-4 border-l-2 border-gold/30">
-                        <p className="text-xs font-semibold text-chocolate mb-1">Respuesta de la Dra. Vidal</p>
+                        <p className="text-xs font-semibold text-chocolate mb-1">Respuesta de la Dra. Flamini</p>
                         <p className="text-sm text-ink-light">{review.teacherReply}</p>
                       </div>
                     )}

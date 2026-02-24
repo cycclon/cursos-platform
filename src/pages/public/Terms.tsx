@@ -21,7 +21,7 @@ export default function Terms() {
           <section>
             <h2 className="font-display text-xl font-bold text-ink mb-3">1. Información General</h2>
             <p>
-              El presente sitio web es operado por la Dra. Marcela Vidal (en adelante, "la Plataforma"),
+              El presente sitio web es operado por la Dra. Gisela Flamini (en adelante, "la Plataforma"),
               con domicilio en la República Argentina. Al acceder, registrarse o utilizar cualquier
               servicio ofrecido en esta plataforma, el usuario acepta de manera expresa estos Términos
               y Condiciones en su totalidad.
@@ -56,7 +56,7 @@ export default function Terms() {
             <p>
               Todo el contenido disponible en la plataforma —incluyendo pero no limitado a videos,
               presentaciones, documentos, evaluaciones, imágenes y textos— es propiedad exclusiva
-              de la Dra. Marcela Vidal y está protegido por las leyes argentinas de propiedad intelectual
+              de la Dra. Gisela Flamini y está protegido por las leyes argentinas de propiedad intelectual
               (Ley 11.723) y tratados internacionales aplicables.
             </p>
             <p className="mt-2">
@@ -127,7 +127,7 @@ export default function Terms() {
             <h2 className="font-display text-xl font-bold text-ink mb-3">9. Limitación de Responsabilidad</h2>
             <p>
               La Plataforma ofrece contenido educativo de carácter informativo y formativo. En
-              ningún caso sustituye el asesoramiento legal profesional. La Dra. Marcela Vidal no
+              ningún caso sustituye el asesoramiento legal profesional. La Dra. Gisela Flamini no
               será responsable por decisiones tomadas por los usuarios en base al contenido de los cursos.
             </p>
             <p className="mt-2">

@@ -13,8 +13,8 @@ export default function Footer() {
                 <BookOpen className="w-5 h-5 text-cream" />
               </div>
               <div>
-                <span className="font-display text-lg font-bold text-cream">Dra. Vidal</span>
-                <span className="text-xs text-cream-dark block -mt-1 tracking-wide">Cursos de Derecho</span>
+                <span className="font-display text-lg font-bold text-cream leading-tight">Academia de Litigación</span>
+                <span className="text-xs text-cream-dark block -mt-0.5 tracking-wide">Dra. Flamini</span>
               </div>
             </Link>
             <p className="text-sm text-cream-dark/70 leading-relaxed">
@@ -80,7 +80,7 @@ export default function Footer() {
 
         <div className="mt-10 pt-6 border-t border-cream-dark/10 text-center">
           <p className="text-xs text-cream-dark/40">
-            &copy; {new Date().getFullYear()} Dra. Marcela Vidal — Cursos de Derecho. Todos los derechos reservados.
+            &copy; {new Date().getFullYear()} Academia de Litigación — Dra. Flamini. Todos los derechos reservados.
           </p>
         </div>
       </div>

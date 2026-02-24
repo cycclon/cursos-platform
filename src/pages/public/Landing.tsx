@@ -67,7 +67,7 @@ export default function Landing() {
                 <span className="text-chocolate italic">ejerce y enseña</span>
               </h1>
               <p className="text-lg text-ink-light leading-relaxed max-w-lg mb-8">
-                Cursos dictados por la Dra. Marcela Vidal, Jueza de Cámara y docente universitaria con más de 20 años de experiencia.
+                Cursos dictados por la Dra. Gisela Flamini, Jueza de Cámara y docente universitaria con más de 20 años de experiencia.
               </p>
               <div className="flex flex-wrap gap-4">
                 <Link
@@ -81,7 +81,7 @@ export default function Landing() {
                   to="/sobre-mi"
                   className="inline-flex items-center gap-2 btn-secondary btn-lg rounded-xl"
                 >
-                  Conocé a la Dra. Vidal
+                  Conocé a la Dra. Flamini
                 </Link>
               </div>
             </div>
