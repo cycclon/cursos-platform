@@ -67,7 +67,7 @@ export default function Landing() {
                 <span className="text-chocolate italic">ejerce y enseña</span>
               </h1>
               <p className="text-lg text-ink-light leading-relaxed max-w-lg mb-8">
-                Cursos dictados por la Dra. Gisela Flamini, Jueza penal y capacitada en sistema acusatorio.
+                Cursos dictados por la Dra. Gisela Flamini, Jueza penal y capacitadora en sistema acusatorio.
               </p>
               <div className="flex flex-wrap gap-4">
                 <Link
