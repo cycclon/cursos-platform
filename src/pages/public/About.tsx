@@ -44,9 +44,9 @@ export default function About() {
             <div className="sticky top-24 space-y-6">
               <div className="relative rounded-2xl overflow-hidden shadow-warm-lg">
                 <img
-                  src={teacher.photoUrl}
+                  src="/aboutme.jpeg"
                   alt={teacher.name}
-                  className="w-full aspect-[3/4] object-cover"
+                  className="w-full aspect-[3/5] object-cover object-[center_15%]"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-ink/50 via-transparent to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-6">
@@ -58,7 +58,7 @@ export default function About() {
               {/* Quick stats */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { icon: Scale, label: 'Años en la justicia', value: '+20' },
+                  { icon: Scale, label: 'Años en la justicia', value: '+15' },
                   { icon: BookOpen, label: 'Publicaciones', value: '+30' },
                   { icon: GraduationCap, label: 'Alumnos formados', value: '+800' },
                 ].map((stat, i) => {
@@ -98,19 +98,20 @@ export default function About() {
               </ul>
             </div>
 
-            {/* Video placeholder */}
-            <div>
-              <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">Mensaje de bienvenida</h2>
-              <div className="mt-6 aspect-video rounded-xl overflow-hidden bg-ink/5 border border-chocolate-100/20 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-16 h-16 rounded-full bg-chocolate/10 flex items-center justify-center mx-auto mb-3">
-                    <BookOpen className="w-7 h-7 text-chocolate" />
-                  </div>
-                  <p className="text-sm text-ink-light">Video de presentación</p>
-                  <p className="text-xs text-ink-light/60 mt-1">(Se cargará con el contenido real)</p>
+            {/* Welcome video */}
+            {teacher.videoUrl && (
+              <div>
+                <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">Mensaje de bienvenida</h2>
+                <div className="mt-6 aspect-video rounded-xl overflow-hidden border border-chocolate-100/20">
+                  <video
+                    src={teacher.videoUrl}
+                    controls
+                    className="w-full h-full object-cover"
+                    poster=""
+                  />
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Philosophy */}
             <div className="bg-chocolate-50 rounded-2xl p-8 border border-chocolate-100/30">

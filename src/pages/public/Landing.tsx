@@ -67,7 +67,7 @@ export default function Landing() {
                 <span className="text-chocolate italic">ejerce y enseña</span>
               </h1>
               <p className="text-lg text-ink-light leading-relaxed max-w-lg mb-8">
-                Cursos dictados por la Dra. Gisela Flamini, Jueza de Cámara y docente universitaria con más de 20 años de experiencia.
+                Cursos dictados por la Dra. Gisela Flamini, Jueza penal y capacitada en sistema acusatorio.
               </p>
               <div className="flex flex-wrap gap-4">
                 <Link
@@ -89,7 +89,7 @@ export default function Landing() {
               <div className="hidden md:block relative">
                 <div className="relative rounded-2xl overflow-hidden shadow-warm-lg">
                   <img
-                    src={teacher.photoUrl}
+                    src="/landing.jpeg"
                     alt={teacher.name}
                     className="w-full aspect-[4/5] object-cover"
                   />
