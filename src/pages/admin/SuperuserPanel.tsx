@@ -1,16 +1,35 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   DollarSign, Users, BookOpen, TrendingUp, Calculator,
-  AlertCircle, Settings,
+  AlertCircle, Settings, GraduationCap, Plus, Trash2,
+  Crown, Loader2,
 } from 'lucide-react';
 import { coursesService } from '@/services/courses';
 import { statisticsService } from '@/services/statistics';
+import { superuserService, type TeacherEntry } from '@/services/superuser';
 import { formatPrice } from '@/utils/format';
+import { useToast } from '@/context/ToastContext';
+
+const INPUT = 'w-full px-4 py-2.5 rounded-xl border border-chocolate-100/40 bg-parchment text-sm text-ink placeholder:text-ink-light/60 focus:outline-none focus:border-error/40 focus:ring-2 focus:ring-error/10 transition-all';
 
 export default function SuperuserPanel() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
   const [feeType, setFeeType] = useState<'percentage' | 'fixed'>('percentage');
   const [feeValue, setFeeValue] = useState(10);
+
+  // Teacher management state
+  const [showAddTeacher, setShowAddTeacher] = useState(false);
+  const [teacherForm, setTeacherForm] = useState({ name: '', email: '', title: '' });
+  const [savingTeacher, setSavingTeacher] = useState(false);
+  const [deletingTeacher, setDeletingTeacher] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  const { data: teachers = [] } = useQuery({
+    queryKey: ['superuser-teachers'],
+    queryFn: superuserService.getTeachers,
+  });
 
   const { data: courses = [], isLoading: loadingCourses } = useQuery({
     queryKey: ['courses'],
@@ -53,6 +72,43 @@ export default function SuperuserPanel() {
     return feeValue;
   };
 
+  const handleAddTeacher = async () => {
+    if (!teacherForm.name.trim() || !teacherForm.email.trim() || !teacherForm.title.trim()) {
+      toast.error('Completá todos los campos.');
+      return;
+    }
+    setSavingTeacher(true);
+    try {
+      await superuserService.createTeacher(teacherForm);
+      queryClient.invalidateQueries({ queryKey: ['superuser-teachers'] });
+      setTeacherForm({ name: '', email: '', title: '' });
+      setShowAddTeacher(false);
+      toast.success('Docente creado correctamente.');
+    } catch (err: unknown) {
+      toast.error((err as Error).message || 'Error al crear docente.');
+    } finally {
+      setSavingTeacher(false);
+    }
+  };
+
+  const handleDeleteTeacher = async (teacher: TeacherEntry) => {
+    if (confirmDelete !== teacher.id) {
+      setConfirmDelete(teacher.id);
+      return;
+    }
+    setDeletingTeacher(teacher.id);
+    try {
+      await superuserService.deleteTeacher(teacher.id);
+      queryClient.invalidateQueries({ queryKey: ['superuser-teachers'] });
+      setConfirmDelete(null);
+      toast.success('Docente eliminado.');
+    } catch (err: unknown) {
+      toast.error((err as Error).message || 'Error al eliminar docente.');
+    } finally {
+      setDeletingTeacher(null);
+    }
+  };
+
   return (
     <div>
       <div className="mb-8">
@@ -84,6 +140,129 @@ export default function SuperuserPanel() {
             </div>
           );
         })}
+      </div>
+
+      {/* Teachers management */}
+      <div className="bg-parchment rounded-xl p-6 border-2 border-error/10 shadow-warm mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <GraduationCap className="w-5 h-5 text-error" />
+            <h2 className="font-display text-lg font-bold text-ink">Docentes</h2>
+          </div>
+          <button
+            onClick={() => setShowAddTeacher(!showAddTeacher)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-error text-cream hover:bg-error/90 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Agregar Docente
+          </button>
+        </div>
+
+        {/* Add teacher form */}
+        {showAddTeacher && (
+          <div className="mb-6 p-4 bg-cream-dark/50 rounded-xl space-y-3">
+            <div className="grid sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-ink mb-1">Nombre completo</label>
+                <input
+                  type="text"
+                  value={teacherForm.name}
+                  onChange={e => setTeacherForm({ ...teacherForm, name: e.target.value })}
+                  placeholder="Ej: Dr. Juan Pérez"
+                  className={INPUT}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-ink mb-1">Email (Google)</label>
+                <input
+                  type="email"
+                  value={teacherForm.email}
+                  onChange={e => setTeacherForm({ ...teacherForm, email: e.target.value })}
+                  placeholder="docente@gmail.com"
+                  className={INPUT}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-ink mb-1">Título profesional</label>
+                <input
+                  type="text"
+                  value={teacherForm.title}
+                  onChange={e => setTeacherForm({ ...teacherForm, title: e.target.value })}
+                  placeholder="Ej: Abogado - Especialista en..."
+                  className={INPUT}
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-ink-light/70">
+              El docente podrá ingresar con Google usando este email. Podrá crear cursos, pero los certificados serán firmados por la docente principal.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => { setShowAddTeacher(false); setTeacherForm({ name: '', email: '', title: '' }); }}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-ink-light hover:bg-chocolate-100/20 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleAddTeacher}
+                disabled={savingTeacher}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-error text-cream hover:bg-error/90 disabled:opacity-50 transition-colors"
+              >
+                {savingTeacher && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Crear Docente
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Teachers list */}
+        {teachers.length === 0 ? (
+          <p className="text-sm text-ink-light text-center py-6">No hay docentes registrados.</p>
+        ) : (
+          <div className="space-y-2">
+            {teachers.map(t => (
+              <div
+                key={t.id}
+                className="flex items-center justify-between p-3 rounded-xl bg-cream-dark/30 border border-chocolate-100/10"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-chocolate-100/30 flex items-center justify-center text-sm font-bold text-chocolate">
+                    {t.name.charAt(0)}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-ink">{t.name}</span>
+                      {t.isMainTeacher && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gold/15 text-[10px] font-bold text-gold-dark uppercase tracking-wider">
+                          <Crown className="w-3 h-3" />
+                          Principal
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-ink-light">{t.email} · {t.title}</p>
+                  </div>
+                </div>
+                {!t.isMainTeacher && (
+                  <button
+                    onClick={() => handleDeleteTeacher(t)}
+                    disabled={deletingTeacher === t.id}
+                    className={`p-2 rounded-lg transition-colors ${
+                      confirmDelete === t.id
+                        ? 'bg-error text-cream'
+                        : 'text-ink-light hover:text-error hover:bg-error-light'
+                    }`}
+                    title={confirmDelete === t.id ? 'Confirmar eliminación' : 'Eliminar docente'}
+                  >
+                    {deletingTeacher === t.id
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Trash2 className="w-4 h-4" />
+                    }
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Fee calculator */}
