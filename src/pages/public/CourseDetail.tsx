@@ -180,7 +180,7 @@ export default function CourseDetail() {
               <h1 className="font-display text-3xl md:text-4xl font-bold text-ink mt-2 mb-4 text-balance">
                 {course.title}
               </h1>
-              <p className="text-ink-light leading-relaxed mb-6">{course.summary}</p>
+              <p className="text-ink-light leading-relaxed mb-6 whitespace-pre-line">{course.summary}</p>
 
               <div className="flex flex-wrap items-center gap-4 text-sm text-ink-light mb-6">
                 <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" />{course.duration}</span>
@@ -262,10 +262,9 @@ export default function CourseDetail() {
             {/* Description */}
             <div>
               <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">Descripción</h2>
-              <div
-                className="prose prose-sm max-w-none text-ink-light leading-relaxed mt-6"
-                dangerouslySetInnerHTML={{ __html: course.description }}
-              />
+              <div className="prose prose-sm max-w-none text-ink-light leading-relaxed mt-6 whitespace-pre-line">
+                {course.description}
+              </div>
             </div>
 
             {/* Prerequisites */}
