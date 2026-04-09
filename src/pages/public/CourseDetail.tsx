@@ -42,6 +42,11 @@ export default function CourseDetail() {
       return;
     }
 
+    if (course!.availability !== 'Disponible') {
+      toast.error('Este curso no está disponible para inscripción');
+      return;
+    }
+
     const effectivePrice = course!.discountPrice ?? course!.price;
 
     // Free course → direct enrollment
@@ -231,6 +236,17 @@ export default function CourseDetail() {
                 >
                   Editar curso
                 </Link>
+              ) : course.availability !== 'Disponible' ? (
+                <button
+                  disabled
+                  className="btn-primary btn-lg btn-full rounded-xl opacity-60 cursor-not-allowed"
+                >
+                  {course.availability === 'Próximamente'
+                    ? 'Próximamente'
+                    : course.availability === 'Cerrado'
+                      ? 'Inscripciones cerradas'
+                      : 'No disponible'}
+                </button>
               ) : (
                 <button
                   onClick={handleEnroll}
