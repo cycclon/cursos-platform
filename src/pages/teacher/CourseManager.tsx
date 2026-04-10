@@ -84,6 +84,7 @@ export default function CourseManager() {
   const toast = useToast();
   const imageInputRef = useRef<HTMLInputElement>(null);
   const materialInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const { data: courses = [], isLoading: loadingCourses } = useQuery({
     queryKey: ['courses'],
@@ -125,6 +126,7 @@ export default function CourseManager() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingMaterial, setUploadingMaterial] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
 
   /* ── Handlers ──────────────────────────────────── */
 
@@ -419,6 +421,56 @@ export default function CourseManager() {
     }
   };
 
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingVideo(true);
+    try {
+      // Try to read duration from file metadata before upload
+      const duration = await new Promise<number>((resolve) => {
+        const videoEl = document.createElement('video');
+        videoEl.preload = 'metadata';
+        videoEl.onloadedmetadata = () => {
+          const d = isFinite(videoEl.duration) ? Math.round(videoEl.duration) : 0;
+          URL.revokeObjectURL(videoEl.src);
+          resolve(d);
+        };
+        videoEl.onerror = () => {
+          URL.revokeObjectURL(videoEl.src);
+          resolve(0);
+        };
+        videoEl.src = URL.createObjectURL(file);
+      });
+
+      const { url } = await uploadsService.uploadVideo(file);
+
+      const m = Math.floor(duration / 60);
+      const s = duration % 60;
+      const durationInput = duration > 0 ? `${m}:${s.toString().padStart(2, '0')}` : '';
+
+      const baseName = file.name.replace(/\.[^.]+$/, '');
+      setModuleForm(prev => ({
+        ...prev,
+        videos: [
+          ...prev.videos,
+          {
+            url,
+            title: baseName,
+            durationInput,
+            duration,
+            order: prev.videos.length,
+          },
+        ],
+      }));
+      toast.success('Video subido.');
+    } catch {
+      toast.error('Error al subir el video. Verificá que sea MP4 y pese menos de 500MB.');
+    } finally {
+      setUploadingVideo(false);
+      if (videoInputRef.current) videoInputRef.current.value = '';
+    }
+  };
+
   const handleRemoveMaterial = (matIndex: number) => {
     setModuleForm(prev => ({
       ...prev,
@@ -649,17 +701,40 @@ export default function CourseManager() {
             ))}
           </div>
         )}
-        <button
-          type="button"
-          onClick={() => setModuleForm(prev => ({
-            ...prev,
-            videos: [...prev.videos, { url: '', title: '', durationInput: '', duration: 0, order: prev.videos.length }],
-          }))}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-chocolate bg-chocolate-50 rounded-lg hover:bg-chocolate-100/40 transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Agregar video
-        </button>
+        <input
+          ref={videoInputRef}
+          type="file"
+          accept="video/mp4"
+          onChange={handleVideoUpload}
+          className="hidden"
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => videoInputRef.current?.click()}
+            disabled={uploadingVideo}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-parchment bg-chocolate rounded-lg hover:bg-chocolate/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {uploadingVideo ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Upload className="w-3.5 h-3.5" />
+            )}
+            {uploadingVideo ? 'Subiendo…' : 'Subir video (MP4)'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setModuleForm(prev => ({
+              ...prev,
+              videos: [...prev.videos, { url: '', title: '', durationInput: '', duration: 0, order: prev.videos.length }],
+            }))}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-chocolate bg-chocolate-50 rounded-lg hover:bg-chocolate-100/40 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Agregar URL (YouTube, Vimeo…)
+          </button>
+          <span className="text-[11px] text-ink-light/70">MP4 hasta 500MB</span>
+        </div>
       </div>
 
       {/* Materials */}
