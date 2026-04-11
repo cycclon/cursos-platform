@@ -127,6 +127,7 @@ export default function CourseManager() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingMaterial, setUploadingMaterial] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
 
   /* ── Handlers ──────────────────────────────────── */
 
@@ -425,6 +426,7 @@ export default function CourseManager() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingVideo(true);
+    setVideoUploadProgress(0);
     try {
       // Try to read duration from file metadata before upload
       const duration = await new Promise<number>((resolve) => {
@@ -442,7 +444,9 @@ export default function CourseManager() {
         videoEl.src = URL.createObjectURL(file);
       });
 
-      const { url } = await uploadsService.uploadVideo(file);
+      const { url } = await uploadsService.uploadVideo(file, (percent) => {
+        setVideoUploadProgress(percent);
+      });
 
       const m = Math.floor(duration / 60);
       const s = duration % 60;
@@ -463,10 +467,15 @@ export default function CourseManager() {
         ],
       }));
       toast.success('Video subido.');
-    } catch {
-      toast.error('Error al subir el video. Verificá que sea MP4 y pese menos de 500MB.');
+    } catch (err) {
+      console.error('[uploadVideo] failed:', err);
+      const message = err instanceof Error && err.message
+        ? `Error al subir el video: ${err.message}`
+        : 'Error al subir el video. Verificá que sea MP4 y pese menos de 500MB.';
+      toast.error(message);
     } finally {
       setUploadingVideo(false);
+      setVideoUploadProgress(0);
       if (videoInputRef.current) videoInputRef.current.value = '';
     }
   };
@@ -720,7 +729,11 @@ export default function CourseManager() {
             ) : (
               <Upload className="w-3.5 h-3.5" />
             )}
-            {uploadingVideo ? 'Subiendo…' : 'Subir video (MP4)'}
+            {uploadingVideo
+              ? videoUploadProgress >= 100
+                ? 'Procesando…'
+                : `Subiendo ${videoUploadProgress}%`
+              : 'Subir video (MP4)'}
           </button>
           <button
             type="button"
@@ -728,13 +741,35 @@ export default function CourseManager() {
               ...prev,
               videos: [...prev.videos, { url: '', title: '', durationInput: '', duration: 0, order: prev.videos.length }],
             }))}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-chocolate bg-chocolate-50 rounded-lg hover:bg-chocolate-100/40 transition-colors"
+            disabled={uploadingVideo}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-chocolate bg-chocolate-50 rounded-lg hover:bg-chocolate-100/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-3.5 h-3.5" />
             Agregar URL (YouTube, Vimeo…)
           </button>
           <span className="text-[11px] text-ink-light/70">MP4 hasta 500MB</span>
         </div>
+        {uploadingVideo && (
+          <div className="mt-2 space-y-1">
+            <div
+              role="progressbar"
+              aria-valuenow={videoUploadProgress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              className="h-1.5 w-full overflow-hidden rounded-full bg-chocolate-100/30"
+            >
+              <div
+                className="h-full bg-chocolate transition-[width] duration-150 ease-out"
+                style={{ width: `${videoUploadProgress}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-ink-light/80">
+              {videoUploadProgress >= 100
+                ? 'Subida completa. El servidor está guardando el archivo…'
+                : `Subiendo al servidor: ${videoUploadProgress}%`}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Materials */}

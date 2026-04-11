@@ -29,6 +29,7 @@ export default function ProfileSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
 
   useEffect(() => {
     if (teacher) {
@@ -80,14 +81,22 @@ export default function ProfileSettings() {
     const file = e.target.files?.[0];
     if (!file) return;
     setIsUploadingVideo(true);
+    setVideoUploadProgress(0);
     try {
-      const { url } = await uploadsService.uploadVideo(file);
+      const { url } = await uploadsService.uploadVideo(file, (percent) => {
+        setVideoUploadProgress(percent);
+      });
       handleChange('videoUrl', url);
       toast.success('Video subido correctamente.');
-    } catch {
-      toast.error('Error al subir el video.');
+    } catch (err) {
+      console.error('[uploadVideo] failed:', err);
+      const message = err instanceof Error && err.message
+        ? `Error al subir el video: ${err.message}`
+        : 'Error al subir el video.';
+      toast.error(message);
     } finally {
       setIsUploadingVideo(false);
+      setVideoUploadProgress(0);
       if (videoInputRef.current) videoInputRef.current.value = '';
     }
   };
@@ -283,7 +292,11 @@ export default function ProfileSettings() {
                   ) : (
                     <Video className="w-4 h-4" />
                   )}
-                  {isUploadingVideo ? 'Subiendo...' : 'Subir'}
+                  {isUploadingVideo
+                    ? videoUploadProgress >= 100
+                      ? 'Procesando…'
+                      : `${videoUploadProgress}%`
+                    : 'Subir'}
                 </button>
               </div>
 
@@ -294,6 +307,28 @@ export default function ProfileSettings() {
                 accept="video/mp4"
                 className="hidden"
               />
+
+              {isUploadingVideo && (
+                <div className="space-y-1">
+                  <div
+                    role="progressbar"
+                    aria-valuenow={videoUploadProgress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    className="h-2 w-full overflow-hidden rounded-full bg-chocolate-100/30"
+                  >
+                    <div
+                      className="h-full bg-chocolate transition-[width] duration-150 ease-out"
+                      style={{ width: `${videoUploadProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-ink-light/80">
+                    {videoUploadProgress >= 100
+                      ? 'Subida completa. El servidor está guardando el archivo…'
+                      : `Subiendo al servidor: ${videoUploadProgress}%`}
+                  </p>
+                </div>
+              )}
 
               <p className="text-xs text-ink-light">
                 Formato: MP4. Máximo 500 MB. Este video aparecerá en tu página "Sobre Mí".
