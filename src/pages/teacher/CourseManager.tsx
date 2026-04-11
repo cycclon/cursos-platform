@@ -1266,7 +1266,8 @@ export default function CourseManager() {
                         <span className="text-[10px] font-bold text-success bg-success-light px-2 py-0.5 rounded-full">Gratis</span>
                       )}
                       <span className="text-[10px] text-ink-light">
-                        {mod.materials?.length ?? 0} material{(mod.materials?.length ?? 0) !== 1 ? 'es' : ''}
+                        {mod.videos?.length ?? 0} video{(mod.videos?.length ?? 0) !== 1 ? 's' : ''}
+                        {mod.materials?.length ? ` · ${mod.materials.length} material${mod.materials.length !== 1 ? 'es' : ''}` : ''}
                       </span>
                       <div className="flex items-center gap-1">
                         <button
@@ -1293,11 +1294,29 @@ export default function CourseManager() {
                         ) : (
                           <div className="text-sm text-ink-light space-y-1">
                             <p>{mod.description}</p>
-                            {mod.videoUrl && (
-                              <p className="flex items-center gap-1">
-                                <Video className="w-3.5 h-3.5" />
-                                {mod.videoDuration ?? 'Video incluido'}
-                              </p>
+                            {(mod.videos ?? []).length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {mod.videos.map(v => (
+                                  <span key={v.id} className="inline-flex items-center gap-1 text-xs bg-chocolate-50 text-chocolate px-2 py-0.5 rounded-full">
+                                    <Video className="w-3 h-3" />
+                                    {v.title || v.url.split('/').pop()?.slice(0, 20) || 'Video'}
+                                    {v.duration ? ` · ${Math.floor(v.duration / 60)}:${String(v.duration % 60).padStart(2, '0')}` : ''}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {(mod.materials ?? []).length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {mod.materials.map(mat => (
+                                  <span key={mat.id} className="inline-flex items-center gap-1 text-xs bg-parchment text-ink px-2 py-0.5 rounded-full">
+                                    <FileText className="w-3 h-3" />
+                                    {mat.name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {(mod.videos ?? []).length === 0 && (mod.materials ?? []).length === 0 && (
+                              <p className="text-xs italic">Sin videos ni materiales</p>
                             )}
                           </div>
                         )}
