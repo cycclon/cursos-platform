@@ -9,6 +9,7 @@ import { coursesService } from '@/services/courses';
 import { enrollmentsService } from '@/services/enrollments';
 import VideoPlayer from '@/components/ui/VideoPlayer';
 import { useToast } from '@/context/ToastContext';
+import { useAuth } from '@/context/AuthContext';
 import { formatDuration } from '@/utils/video';
 import type { ModuleProgressEntry, ModuleVideo } from '@/types';
 
@@ -42,6 +43,7 @@ export default function CoursePlayer() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { user, role } = useAuth();
 
   const { data: courses = [], isLoading: loadingCourses } = useQuery({
     queryKey: ['courses'],
@@ -88,6 +90,8 @@ export default function CoursePlayer() {
 
   const course = courses.find(c => c.id === id);
   const enrollment = enrollments.find(e => e.courseId === id);
+  // The course owner (teacher) can preview all content without being enrolled
+  const isOwner = role === 'teacher' && course?.teacherId === user?.id;
 
   const [activeModuleId, setActiveModuleId] = useState<string>('');
   const [activeVideoIndex, setActiveVideoIndex] = useState<number>(0);
@@ -196,7 +200,7 @@ export default function CoursePlayer() {
       currentPosition: data.currentPosition,
     });
 
-    if (!course || !activeModuleId || !activeVideo || !enrollment) return;
+    if (!course || !activeModuleId || !activeVideo || (!enrollment && !isOwner)) return;
 
     const payload = {
       courseId: course.id,
@@ -214,7 +218,7 @@ export default function CoursePlayer() {
 
   // Video ended — auto-advance to next video or complete module
   const handleVideoEnded = useCallback(() => {
-    if (!activeModule || !course || !enrollment) return;
+    if (!activeModule || !course || (!enrollment && !isOwner)) return;
 
     // Check if there are more videos in this module
     if (activeVideoIndex < moduleVideos.length - 1) {
@@ -345,7 +349,7 @@ export default function CoursePlayer() {
         <div className="flex-1 p-4 lg:p-6">
           {/* Video player */}
           <div className="relative aspect-video rounded-xl overflow-hidden bg-ink mb-2">
-            {activeModule && activeVideo && (activeModule.isFree || enrollment) ? (
+            {activeModule && activeVideo && (activeModule.isFree || enrollment || isOwner) ? (
               <VideoPlayer
                 key={`${activeModuleId}-${activeVideo.id}`}
                 url={activeVideo.url}
@@ -538,7 +542,7 @@ export default function CoursePlayer() {
                   >
                     {completed ? (
                       <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
-                    ) : mod.isFree || enrollment ? (
+                    ) : mod.isFree || enrollment || isOwner ? (
                       <Play className="w-5 h-5 text-chocolate shrink-0" />
                     ) : (
                       <Lock className="w-5 h-5 text-ink-light/50 shrink-0" />
