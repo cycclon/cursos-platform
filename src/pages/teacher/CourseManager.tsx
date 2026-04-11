@@ -9,6 +9,7 @@ import {
   Award, ClipboardList,
 } from 'lucide-react';
 import CourseImage from '@/components/ui/CourseImage';
+import ModuleVideoPreview from '@/components/ui/ModuleVideoPreview';
 import Combobox from '@/components/ui/Combobox';
 import { coursesService } from '@/services/courses';
 import { modulesService } from '@/services/modules';
@@ -1295,13 +1296,9 @@ export default function CourseManager() {
                           <div className="text-sm text-ink-light space-y-1">
                             <p>{mod.description}</p>
                             {(mod.videos ?? []).length > 0 && (
-                              <div className="flex flex-wrap gap-2 mt-2">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                                 {mod.videos.map(v => (
-                                  <span key={v.id} className="inline-flex items-center gap-1 text-xs bg-chocolate-50 text-chocolate px-2 py-0.5 rounded-full">
-                                    <Video className="w-3 h-3" />
-                                    {v.title || v.url.split('/').pop()?.slice(0, 20) || 'Video'}
-                                    {v.duration ? ` · ${Math.floor(v.duration / 60)}:${String(v.duration % 60).padStart(2, '0')}` : ''}
-                                  </span>
+                                  <ModuleVideoPreview key={v.id} video={v} />
                                 ))}
                               </div>
                             )}
