@@ -9,6 +9,7 @@ import { coursesService } from '@/services/courses';
 import { enrollmentsService } from '@/services/enrollments';
 import { paymentsService } from '@/services/payments';
 import CourseImage from '@/components/ui/CourseImage';
+import ModuleVideoPreview from '@/components/ui/ModuleVideoPreview';
 import { reviewsService } from '@/services/reviews';
 import { formatPrice } from '@/utils/format';
 import { useAuth } from '@/context/AuthContext';
@@ -341,6 +342,13 @@ export default function CourseDetail() {
                       {isOpen && (
                         <div className="px-4 pb-4 border-t border-chocolate-100/20 pt-3">
                           <p className="text-sm text-ink-light mb-3">{mod.description}</p>
+                          {(mod.videos ?? []).length > 0 && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                              {mod.videos.map(v => (
+                                <ModuleVideoPreview key={v.id} video={v} />
+                              ))}
+                            </div>
+                          )}
                           {mod.materials.length > 0 && (
                             <div className="space-y-1.5">
                               {mod.materials.map(mat => (
