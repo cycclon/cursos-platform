@@ -76,8 +76,13 @@ export default function CourseDetail() {
     try {
       const { initPoint } = await paymentsService.createPreference({ courseId: course!.id });
       window.location.href = initPoint;
-    } catch {
-      toast.error('Error al iniciar el pago. Intentá de nuevo.');
+    } catch (err: unknown) {
+      const error = err as { status?: number; message?: string };
+      if (error.status === 503 && error.message === 'mercadopago_not_connected') {
+        toast.error('La docente está actualizando su forma de cobro. Volvé a intentar en unos minutos.');
+      } else {
+        toast.error('Error al iniciar el pago. Intentá de nuevo.');
+      }
       setEnrolling(false);
     }
   };

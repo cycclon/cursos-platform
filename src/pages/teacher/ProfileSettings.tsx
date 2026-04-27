@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Camera, Plus, X, Loader2, Save, Video, GripVertical } from 'lucide-react';
+import {
+  Camera, Plus, X, Loader2, Save, Video, GripVertical,
+  CheckCircle2, CreditCard, ExternalLink, Unlink, AlertCircle,
+} from 'lucide-react';
 import { teacherService } from '@/services/teacher';
 import { uploadsService } from '@/services/uploads';
+import { mercadoPagoService } from '@/services/mercadoPago';
 import { useToast } from '@/context/ToastContext';
 
 const INPUT = 'w-full px-4 py-2.5 rounded-xl border border-chocolate-100/40 bg-parchment text-sm text-ink placeholder:text-ink-light/60 focus:outline-none focus:border-chocolate/40 focus:ring-2 focus:ring-chocolate/10 transition-all';
@@ -17,6 +21,54 @@ export default function ProfileSettings() {
     queryKey: ['teacher'],
     queryFn: teacherService.getTeacher,
   });
+
+  const { data: mpStatus, isLoading: mpLoading } = useQuery({
+    queryKey: ['mercadopago-status'],
+    queryFn: mercadoPagoService.getStatus,
+  });
+
+  const [isDisconnectingMp, setIsDisconnectingMp] = useState(false);
+
+  // Surface OAuth callback result via toast and clean the URL.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mp = params.get('mp');
+    if (!mp) return;
+
+    if (mp === 'connected') {
+      toast.success('Mercado Pago conectado correctamente.');
+      queryClient.invalidateQueries({ queryKey: ['mercadopago-status'] });
+    } else if (mp === 'error') {
+      const reason = params.get('reason') || 'desconocido';
+      toast.error(`No se pudo conectar Mercado Pago (${reason}).`);
+    }
+
+    params.delete('mp');
+    params.delete('reason');
+    const newSearch = params.toString();
+    const newUrl = `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}`;
+    window.history.replaceState({}, '', newUrl);
+  }, [toast, queryClient]);
+
+  const handleConnectMp = () => {
+    window.location.href = mercadoPagoService.connectUrl;
+  };
+
+  const handleDisconnectMp = async () => {
+    if (!window.confirm('¿Querés desconectar tu cuenta de Mercado Pago? Los estudiantes no podrán pagar hasta que la vuelvas a conectar.')) {
+      return;
+    }
+    setIsDisconnectingMp(true);
+    try {
+      await mercadoPagoService.disconnect();
+      queryClient.invalidateQueries({ queryKey: ['mercadopago-status'] });
+      toast.success('Cuenta de Mercado Pago desconectada.');
+    } catch {
+      toast.error('No se pudo desconectar la cuenta. Probá de nuevo.');
+    } finally {
+      setIsDisconnectingMp(false);
+    }
+  };
 
   const [formData, setFormData] = useState({
     title: '',
@@ -199,6 +251,122 @@ export default function ProfileSettings() {
 
         {/* Form column */}
         <div className="lg:col-span-2 space-y-6">
+
+          {/* Mercado Pago connection */}
+          <div
+            className={`rounded-xl p-6 shadow-warm border ${
+              mpStatus?.connected
+                ? 'bg-parchment border-chocolate-100/20'
+                : 'bg-gradient-to-br from-gold/10 to-parchment border-gold/30'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h2 className="font-display text-lg font-bold text-ink gold-underline">
+                  Cobros con Mercado Pago
+                </h2>
+              </div>
+              {mpStatus?.connected && (
+                <span className="inline-flex items-center gap-1.5 shrink-0 text-xs font-semibold text-success bg-success-light border border-success/30 px-2.5 py-1 rounded-full">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Conectada
+                </span>
+              )}
+            </div>
+
+            {mpLoading ? (
+              <div className="mt-6 space-y-2">
+                <div className="h-4 bg-cream-dark/40 rounded animate-pulse w-3/4" />
+                <div className="h-10 bg-cream-dark/40 rounded animate-pulse w-48" />
+              </div>
+            ) : mpStatus?.connected ? (
+              <div className="mt-6 space-y-4">
+                <p className="text-sm text-ink-light leading-relaxed">
+                  Cuando un estudiante se inscriba en un curso pago, los fondos se acreditarán
+                  directamente en tu cuenta de Mercado Pago.
+                </p>
+
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <div className="bg-cream-dark/40 rounded-lg px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-wider text-ink-light/70 font-semibold">
+                      ID de Mercado Pago
+                    </p>
+                    <p className="text-sm font-mono text-ink mt-0.5 truncate">{mpStatus.mpUserId}</p>
+                  </div>
+                  <div className="bg-cream-dark/40 rounded-lg px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-wider text-ink-light/70 font-semibold">
+                      Conectada el
+                    </p>
+                    <p className="text-sm text-ink mt-0.5">
+                      {mpStatus.connectedAt
+                        ? new Date(mpStatus.connectedAt).toLocaleDateString('es-AR', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })
+                        : '—'}
+                    </p>
+                  </div>
+                  <div className="bg-cream-dark/40 rounded-lg px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-wider text-ink-light/70 font-semibold">
+                      Modo
+                    </p>
+                    <p className="text-sm text-ink mt-0.5">
+                      {mpStatus.liveMode ? 'Producción' : 'Prueba'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2 text-xs text-ink-light pt-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-success shrink-0 mt-0.5" />
+                  <span>
+                    La conexión se renueva automáticamente. No necesitás hacer nada.
+                  </span>
+                </div>
+
+                <div className="pt-2 border-t border-chocolate-100/20">
+                  <button
+                    onClick={handleDisconnectMp}
+                    disabled={isDisconnectingMp}
+                    className="inline-flex items-center gap-2 text-sm font-medium text-ink-light hover:text-error transition-colors disabled:opacity-50"
+                  >
+                    {isDisconnectingMp ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Unlink className="w-4 h-4" />
+                    )}
+                    {isDisconnectingMp ? 'Desconectando…' : 'Desconectar cuenta'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-5">
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-gold/10 border border-gold/30">
+                  <AlertCircle className="w-5 h-5 text-gold-dark shrink-0 mt-0.5" />
+                  <p className="text-sm text-ink leading-relaxed">
+                    <span className="font-semibold">Conectá tu cuenta para empezar a recibir pagos.</span>{' '}
+                    Mientras no esté conectada, los estudiantes no van a poder inscribirse en cursos pagos.
+                  </p>
+                </div>
+
+                <p className="text-sm text-ink-light leading-relaxed">
+                  Te vamos a redirigir a Mercado Pago para que inicies sesión con tu propia cuenta y
+                  autorices a la plataforma. <span className="font-semibold text-ink">No vas a tener
+                  que compartir tu token con nadie.</span> Los pagos se acreditan directamente en tu
+                  cuenta de Mercado Pago.
+                </p>
+
+                <button
+                  onClick={handleConnectMp}
+                  className="inline-flex items-center gap-2 btn-primary btn-lg rounded-xl"
+                >
+                  <CreditCard className="w-4.5 h-4.5" />
+                  Conectar Mercado Pago
+                  <ExternalLink className="w-4 h-4 opacity-70" />
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Title */}
           <div className="bg-parchment rounded-xl p-6 border border-chocolate-100/20 shadow-warm">
