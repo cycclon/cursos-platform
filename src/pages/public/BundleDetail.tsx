@@ -4,16 +4,29 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BookOpen, Award, ArrowRight, Package, CheckCircle2, ShieldCheck, AlertTriangle, Loader2 } from 'lucide-react';
 import { bundlesService } from '@/services/bundles';
 import { coursesService } from '@/services/courses';
+import { workshopsService } from '@/services/workshops';
+import { workshopRegistrationsService } from '@/services/workshopRegistrations';
 import { enrollmentsService } from '@/services/enrollments';
 import { paymentsService } from '@/services/payments';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { formatPrice } from '@/utils/format';
 import CourseCard from '@/components/course/CourseCard';
-import type { Bundle, Course } from '@/types';
+import type { Bundle, Course, Workshop } from '@/types';
+import { CalendarDays, Video, MapPin } from 'lucide-react';
 
 function getBundleCourses(bundle: Bundle, courses: Course[]): Course[] {
   return bundle.courseIds.map(id => courses.find(c => c.id === id)).filter(Boolean) as Course[];
+}
+
+function getBundleWorkshops(bundle: Bundle, workshops: Workshop[]): Workshop[] {
+  return (bundle.workshopIds ?? []).map(id => workshops.find(w => w.id === id)).filter(Boolean) as Workshop[];
+}
+
+function formatWorkshopDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat('es-AR', { dateStyle: 'long', timeStyle: 'short' }).format(d);
 }
 
 export default function BundleDetail() {
@@ -37,6 +50,11 @@ export default function BundleDetail() {
     queryFn: coursesService.getCourses,
   });
 
+  const { data: workshops = [] } = useQuery({
+    queryKey: ['workshops'],
+    queryFn: () => workshopsService.getWorkshops(),
+  });
+
   const { data: enrollments = [] } = useQuery({
     queryKey: ['enrollments'],
     queryFn: enrollmentsService.getEnrollments,
@@ -56,7 +74,7 @@ export default function BundleDetail() {
       return;
     }
 
-    // Free bundle → direct enrollment
+    // Free bundle → direct enrollment + workshop registrations
     if (bundle!.price === 0) {
       setEnrolling(true);
       try {
@@ -64,8 +82,13 @@ export default function BundleDetail() {
         await Promise.all(toEnroll.map(c =>
           enrollmentsService.createEnrollment(c.id).catch(() => {}),
         ));
+        const bundleWorkshops = getBundleWorkshops(bundle!, workshops);
+        await Promise.all(bundleWorkshops.map(w =>
+          workshopRegistrationsService.register(w.id).catch(() => {}),
+        ));
         queryClient.invalidateQueries({ queryKey: ['enrollments'] });
-        toast.success(`¡Inscripción exitosa! Se agregaron ${toEnroll.length} curso${toEnroll.length === 1 ? '' : 's'}.`);
+        queryClient.invalidateQueries({ queryKey: ['workshop-registrations'] });
+        toast.success('¡Inscripción exitosa!');
         setShowConfirm(false);
       } catch {
         toast.error('Error al procesar la inscripción.');
@@ -116,6 +139,7 @@ export default function BundleDetail() {
   }
 
   const bundleCourses = getBundleCourses(bundle, courses);
+  const bundleWorkshops = getBundleWorkshops(bundle, workshops);
   const totalModules = bundleCourses.reduce((sum, c) => sum + (c.modules?.length ?? 0), 0);
   const savings = bundle.originalPrice - bundle.price;
 
@@ -238,14 +262,51 @@ export default function BundleDetail() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Included Courses */}
-        <div className="mb-12">
-          <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">Cursos incluidos</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children mt-6">
-            {bundleCourses.map(course => (
-              <CourseCard key={course.id} course={course} />
-            ))}
+        {bundleCourses.length > 0 && (
+          <div className="mb-12">
+            <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">Cursos incluidos</h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children mt-6">
+              {bundleCourses.map(course => (
+                <CourseCard key={course.id} course={course} />
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Included Workshops */}
+        {bundleWorkshops.length > 0 && (
+          <div className="mb-12">
+            <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">Talleres incluidos</h2>
+            <div className="grid md:grid-cols-2 gap-4 mt-6">
+              {bundleWorkshops.map(workshop => (
+                <Link
+                  key={workshop.id}
+                  to={`/talleres/${workshop.slug}`}
+                  className="group flex gap-4 p-4 rounded-xl bg-parchment border border-chocolate-100/20 hover:border-chocolate/30 transition-colors shadow-warm"
+                >
+                  <div className="w-24 h-24 rounded-lg overflow-hidden bg-chocolate-50 shrink-0">
+                    {workshop.imageUrl && (
+                      <img src={workshop.imageUrl} alt={workshop.title} className="w-full h-full object-cover" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] font-bold text-gold uppercase tracking-wider flex items-center gap-1">
+                      {workshop.modality === 'online' ? <Video className="w-3 h-3" /> : <MapPin className="w-3 h-3" />}
+                      Taller {workshop.modality}
+                    </span>
+                    <h3 className="font-display text-base font-bold text-ink mt-1 group-hover:text-chocolate transition-colors line-clamp-2">
+                      {workshop.title}
+                    </h3>
+                    <p className="text-xs text-ink-light mt-1 flex items-center gap-1">
+                      <CalendarDays className="w-3 h-3" />
+                      {formatWorkshopDate(workshop.scheduledAt)}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Benefits */}
         <div className="bg-parchment rounded-xl p-6 border border-chocolate-100/20 shadow-warm max-w-3xl">

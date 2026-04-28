@@ -5,6 +5,7 @@ import { Menu, X, User, LogIn, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { bundlesService } from '@/services/bundles';
+import { workshopsService } from '@/services/workshops';
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -20,11 +21,18 @@ export default function Header() {
     queryFn: bundlesService.getBundles,
   });
 
+  const { data: workshops = [] } = useQuery({
+    queryKey: ['workshops'],
+    queryFn: () => workshopsService.getWorkshops(),
+  });
+
   const hasCombos = bundles.length > 0;
+  const hasWorkshops = workshops.length > 0;
 
   const publicLinks = [
     { to: '/', label: 'Inicio' },
     { to: '/cursos', label: 'Cursos' },
+    ...(hasWorkshops ? [{ to: '/talleres', label: 'Talleres' }] : []),
     ...(hasCombos ? [{ to: '/combos', label: 'Combos' }] : []),
     { to: '/sobre-mi', label: 'Sobre Mí' },
     { to: '/preguntas-frecuentes', label: 'FAQ' },

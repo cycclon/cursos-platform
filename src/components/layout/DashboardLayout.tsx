@@ -4,9 +4,10 @@ import { useAuth } from '@/context/AuthContext';
 import Header from './Header';
 import { coursesService } from '@/services/courses';
 import { bundlesService } from '@/services/bundles';
+import { workshopsService } from '@/services/workshops';
 import {
   LayoutDashboard, BookOpen, BarChart3,
-  ChevronRight, Package, HelpCircle, MessageSquare, UserCircle,
+  ChevronRight, Package, HelpCircle, MessageSquare, UserCircle, CalendarDays,
 } from 'lucide-react';
 
 export default function DashboardLayout() {
@@ -25,14 +26,23 @@ export default function DashboardLayout() {
     queryFn: bundlesService.getBundles,
   });
 
+  const { data: workshops = [] } = useQuery({
+    queryKey: ['workshops'],
+    queryFn: () => workshopsService.getWorkshops(),
+  });
+
   const hasMultipleCourses = courses.length >= 2;
   const hasCombos = bundles.length > 0;
+  const hasWorkshops = workshops.length > 0;
 
   const teacherLinks = [
     { to: '/admin/perfil', label: 'Mi Perfil', icon: UserCircle },
     { to: '/admin/panel', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/admin/cursos', label: 'Mis Cursos', icon: BookOpen },
-    ...(hasMultipleCourses || hasCombos ? [{ to: '/admin/combos', label: 'Combos', icon: Package }] : []),
+    { to: '/admin/talleres', label: 'Talleres', icon: CalendarDays },
+    ...(hasMultipleCourses || hasCombos || hasWorkshops
+      ? [{ to: '/admin/combos', label: 'Combos', icon: Package }]
+      : []),
     { to: '/admin/faq', label: 'FAQ', icon: HelpCircle },
     { to: '/admin/opiniones', label: 'Opiniones', icon: MessageSquare },
     { to: '/admin/estadisticas', label: 'Estadísticas', icon: BarChart3 },

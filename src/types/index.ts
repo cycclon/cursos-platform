@@ -63,6 +63,7 @@ export interface Course {
   duration: string;
   modules: Module[];
   prerequisites: string[];
+  prerequisiteCourseIds: string[];
   tableOfContents: string[];
   availability: string;
   hasTest: boolean;
@@ -196,9 +197,68 @@ export interface Bundle {
   slug: string;
   description: string;
   courseIds: string[];
+  workshopIds: string[];
   price: number;
   originalPrice: number;
   discountLabel: string;
   imageUrl: string;
   featured: boolean;
+}
+
+export type WorkshopModality = 'online' | 'presencial';
+export type AttendanceStatus = 'registered' | 'attended' | 'cancelled' | 'no_show';
+export type RegistrationSource = 'standalone' | 'bundle';
+
+export interface Workshop {
+  id: string;
+  teacherId: string;
+  title: string;
+  slug: string;
+  category: string;
+  summary: string;
+  description: string;
+  imageUrl: string;
+  price: number;
+  discountPrice?: number;
+  discountLabel?: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  modality: WorkshopModality;
+  meetingUrl?: string;
+  location?: string;
+  capacity?: number;
+  registeredCount: number;
+  prerequisiteCourseIds: string[];
+  prerequisitesText: string[];
+  availability: string;
+  featured: boolean;
+  createdAt: string;
+}
+
+export interface WorkshopRegistration {
+  id: string;
+  studentId: string;
+  workshopId: string | Workshop;
+  attendanceStatus: AttendanceStatus;
+  source: RegistrationSource;
+  bundleId?: string;
+  paymentId?: string;
+  registeredAt: string;
+  attendanceMarkedAt?: string;
+}
+
+export interface WorkshopAccessResponse {
+  eligible: boolean;
+  missing: { id: string; title: string; slug: string }[];
+  meetingUrl?: string;
+  location?: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  modality: WorkshopModality;
+}
+
+export interface WorkshopRosterEntry extends WorkshopRegistration {
+  student: { id: string; name: string; email: string } | null;
+  eligible: boolean;
+  missing: { id: string; title: string; slug: string }[];
 }

@@ -31,6 +31,9 @@ import Certificate from './pages/student/Certificate'
 import TeacherDashboard from './pages/teacher/TeacherDashboard'
 import CourseManager from './pages/teacher/CourseManager'
 import BundleManager from './pages/teacher/BundleManager'
+import WorkshopManager from './pages/teacher/WorkshopManager'
+import Workshops from './pages/public/Workshops'
+import WorkshopDetail from './pages/public/WorkshopDetail'
 import Statistics from './pages/teacher/Statistics'
 import FaqManager from './pages/teacher/FaqManager'
 import ReviewsManager from './pages/teacher/ReviewsManager'
@@ -79,6 +82,8 @@ export default function App() {
           <Route path="/cursos/:slug" element={<CourseDetail />} />
           <Route path="/combos" element={<Bundles />} />
           <Route path="/combos/:slug" element={<BundleDetail />} />
+          <Route path="/talleres" element={<Workshops />} />
+          <Route path="/talleres/:slug" element={<WorkshopDetail />} />
           <Route path="/sobre-mi" element={<About />} />
           <Route path="/preguntas-frecuentes" element={<Faq />} />
           <Route path="/ingresar" element={<Login />} />
@@ -108,6 +113,7 @@ export default function App() {
           <Route path="/admin/panel" element={<TeacherDashboard />} />
           <Route path="/admin/cursos" element={<CourseManager />} />
           <Route path="/admin/combos" element={<BundleManager />} />
+          <Route path="/admin/talleres" element={<WorkshopManager />} />
           <Route path="/admin/faq" element={<FaqManager />} />
           <Route path="/admin/opiniones" element={<ReviewsManager />} />
           <Route path="/admin/estadisticas" element={<Statistics />} />

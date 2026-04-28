@@ -289,6 +289,11 @@ export default function CourseDetail() {
               </div>
             </div>
 
+            {/* Correlative courses */}
+            {(course.prerequisiteCourseIds?.length ?? 0) > 0 && (
+              <CorrelativeCourses prerequisiteCourseIds={course.prerequisiteCourseIds} />
+            )}
+
             {/* Prerequisites */}
             {course.prerequisites.length > 0 && (
               <div>
@@ -523,6 +528,69 @@ export default function CourseDetail() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CorrelativeCourses({ prerequisiteCourseIds }: { prerequisiteCourseIds: string[] }) {
+  const { isAuthenticated } = useAuth();
+  const { data: courses = [] } = useQuery({
+    queryKey: ['courses'],
+    queryFn: coursesService.getCourses,
+  });
+  const { data: enrollments = [] } = useQuery({
+    queryKey: ['enrollments'],
+    queryFn: enrollmentsService.getEnrollments,
+    enabled: isAuthenticated,
+  });
+
+  const prereqs = prerequisiteCourseIds
+    .map(id => courses.find(c => c.id === id))
+    .filter(Boolean) as typeof courses;
+
+  if (prereqs.length === 0) return null;
+
+  const enrollmentByCourse = new Map(enrollments.map(e => [e.courseId, e]));
+  const isCompleted = (id: string): boolean => {
+    const e = enrollmentByCourse.get(id);
+    if (!e || (e.progress ?? 0) < 100) return false;
+    const c = courses.find(x => x.id === id);
+    if (c?.hasTest) return e.testPassed === true;
+    return true;
+  };
+
+  return (
+    <div>
+      <h2 className="font-display text-2xl font-bold text-ink mb-2 gold-underline">Cursos correlativos</h2>
+      <p className="text-sm text-ink-light mt-4 mb-4">
+        Para rendir el examen de este curso necesitás haber completado primero estos cursos.
+        No bloquean la compra ni la visualización del contenido.
+      </p>
+      <ul className="space-y-2">
+        {prereqs.map(c => {
+          const completed = isAuthenticated && isCompleted(c.id);
+          return (
+            <li
+              key={c.id}
+              className="flex items-center gap-3 p-3 rounded-xl border border-chocolate-100/30 bg-parchment"
+            >
+              <CheckCircle2
+                className={`w-5 h-5 shrink-0 ${completed ? 'text-success' : 'text-ink-light/30'}`}
+              />
+              <Link to={`/cursos/${c.slug}`} className="text-sm font-medium text-ink hover:text-chocolate flex-1">
+                {c.title}
+              </Link>
+              {isAuthenticated && (
+                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                  completed ? 'text-success bg-success/10' : 'text-ink-light bg-cream-dark'
+                }`}>
+                  {completed ? 'Completado' : 'Pendiente'}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

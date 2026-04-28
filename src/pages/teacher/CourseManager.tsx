@@ -54,6 +54,7 @@ const emptyCourseForm = {
   discountLabel: '',
   duration: '',
   prerequisites: [] as string[],
+  prerequisiteCourseIds: [] as string[],
   tableOfContents: [] as string[],
   availability: 'Disponible',
   hasTest: false,
@@ -158,6 +159,7 @@ export default function CourseManager() {
       discountLabel: course.discountLabel ?? '',
       duration: course.duration,
       prerequisites: course.prerequisites ?? [],
+      prerequisiteCourseIds: course.prerequisiteCourseIds ?? [],
       tableOfContents: course.tableOfContents ?? [],
       availability: course.availability,
       hasTest: course.hasTest,
@@ -999,6 +1001,52 @@ export default function CourseManager() {
           {/* Section 5: Prerrequisitos */}
           <div>
             <h2 className="font-display text-base font-semibold text-ink border-b border-chocolate-100/20 pb-2 mb-4">Prerrequisitos</h2>
+
+            {/* Correlativas (course-to-course prereqs, enforced at exam time) */}
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-ink mb-1">Cursos correlativos requeridos</label>
+              <p className="text-xs text-ink-light mb-2">
+                El alumno deberá completar estos cursos antes de poder rendir el examen de este curso.
+                No bloquea la compra ni la visualización del contenido.
+              </p>
+              {courses.filter(c => c.id !== editingCourse?.id).length === 0 ? (
+                <p className="text-sm text-ink-light italic">No hay otros cursos disponibles para marcar como correlativos.</p>
+              ) : (
+                <div className="space-y-1.5 max-h-48 overflow-y-auto border border-chocolate-100/30 rounded-xl p-3 bg-cream/50">
+                  {courses
+                    .filter(c => c.id !== editingCourse?.id)
+                    .map(course => {
+                      const checked = formData.prerequisiteCourseIds.includes(course.id);
+                      return (
+                        <div
+                          key={course.id}
+                          onClick={() => setFormData(prev => ({
+                            ...prev,
+                            prerequisiteCourseIds: checked
+                              ? prev.prerequisiteCourseIds.filter(id => id !== course.id)
+                              : [...prev.prerequisiteCourseIds, course.id],
+                          }))}
+                          className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-all ${
+                            checked
+                              ? 'bg-chocolate-50 border border-chocolate/20'
+                              : 'hover:bg-cream-dark/30 border border-transparent'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            readOnly
+                            className="w-4 h-4 rounded accent-chocolate pointer-events-none"
+                          />
+                          <span className="text-sm text-ink flex-1">{course.title}</span>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+
+            <label className="block text-sm font-medium text-ink mb-2">Otros prerrequisitos (texto libre)</label>
             <div className="space-y-2">
               {formData.prerequisites.map((item, i) => (
                 <div key={i} className="flex gap-2">

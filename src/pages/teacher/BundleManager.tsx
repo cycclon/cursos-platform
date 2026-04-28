@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, Edit3, Eye, Trash2, Package, BookOpen, X, Check, DollarSign, MoreVertical,
+  CalendarDays,
 } from 'lucide-react';
 import { coursesService } from '@/services/courses';
 import { bundlesService } from '@/services/bundles';
+import { workshopsService } from '@/services/workshops';
 import { formatPrice } from '@/utils/format';
 import { useToast } from '@/context/ToastContext';
-import type { Bundle, Course } from '@/types';
+import type { Bundle, Course, Workshop } from '@/types';
 
 function generateSlug(title: string): string {
   return title
@@ -24,12 +26,17 @@ function getBundleCourses(bundle: Bundle, courses: Course[]): Course[] {
   return bundle.courseIds.map(id => courses.find(c => c.id === id)).filter(Boolean) as Course[];
 }
 
+function getBundleWorkshops(bundle: Bundle, workshops: Workshop[]): Workshop[] {
+  return (bundle.workshopIds ?? []).map(id => workshops.find(w => w.id === id)).filter(Boolean) as Workshop[];
+}
+
 const emptyForm = {
   title: '',
   slug: '',
   description: '',
   imageUrl: '',
   courseIds: [] as string[],
+  workshopIds: [] as string[],
   price: 0,
   featured: false,
 };
@@ -46,6 +53,11 @@ export default function BundleManager() {
   const { data: bundles = [], isLoading: loadingBundles } = useQuery({
     queryKey: ['bundles'],
     queryFn: bundlesService.getBundles,
+  });
+
+  const { data: workshops = [], isLoading: loadingWorkshops } = useQuery({
+    queryKey: ['workshops'],
+    queryFn: () => workshopsService.getWorkshops(),
   });
 
   const [isEditing, setIsEditing] = useState(false);
@@ -66,6 +78,7 @@ export default function BundleManager() {
       description: bundle.description,
       imageUrl: bundle.imageUrl,
       courseIds: bundle.courseIds,
+      workshopIds: bundle.workshopIds ?? [],
       price: bundle.price,
       featured: bundle.featured,
     });
@@ -103,10 +116,24 @@ export default function BundleManager() {
     }));
   };
 
-  const originalPrice = formData.courseIds.reduce((sum, cid) => {
-    const course = courses.find(c => c.id === cid);
-    return sum + (course?.price ?? 0);
-  }, 0);
+  const handleWorkshopToggle = (workshopId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      workshopIds: prev.workshopIds.includes(workshopId)
+        ? prev.workshopIds.filter(id => id !== workshopId)
+        : [...prev.workshopIds, workshopId],
+    }));
+  };
+
+  const originalPrice =
+    formData.courseIds.reduce((sum, cid) => {
+      const course = courses.find(c => c.id === cid);
+      return sum + (course?.price ?? 0);
+    }, 0) +
+    formData.workshopIds.reduce((sum, wid) => {
+      const workshop = workshops.find(w => w.id === wid);
+      return sum + (workshop?.price ?? 0);
+    }, 0);
 
   const discountPercentage = originalPrice > 0 && formData.price > 0
     ? Math.round((1 - formData.price / originalPrice) * 100)
@@ -137,7 +164,8 @@ export default function BundleManager() {
     setEditingBundle(null);
   };
 
-  const isLoading = loadingCourses || loadingBundles;
+  const isLoading = loadingCourses || loadingBundles || loadingWorkshops;
+  const totalItems = formData.courseIds.length + formData.workshopIds.length;
 
   if (isLoading) {
     return (
@@ -248,9 +276,50 @@ export default function BundleManager() {
               ))}
             </div>
 
-            {formData.courseIds.length > 0 && (
+          </div>
+
+          {/* Workshop Selection */}
+          <div>
+            <label className="block text-sm font-medium text-ink mb-2">Seleccionar Talleres</label>
+            {workshops.length === 0 ? (
+              <p className="text-sm text-ink-light italic">
+                No hay talleres creados aún. Podés crear uno desde la sección Talleres.
+              </p>
+            ) : (
+              <div className="space-y-1.5 max-h-64 overflow-y-auto border border-chocolate-100/30 rounded-xl p-3 bg-cream/50">
+                {workshops.map(workshop => (
+                  <div
+                    key={workshop.id}
+                    onClick={() => handleWorkshopToggle(workshop.id)}
+                    className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-all ${
+                      formData.workshopIds.includes(workshop.id)
+                        ? 'bg-chocolate-50 border border-chocolate/20'
+                        : 'hover:bg-cream-dark/30 border border-transparent'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.workshopIds.includes(workshop.id)}
+                      onChange={e => e.stopPropagation()}
+                      onClick={e => e.stopPropagation()}
+                      readOnly
+                      className="w-4 h-4 rounded accent-chocolate pointer-events-none"
+                    />
+                    <span className="text-sm text-ink flex-1 truncate">
+                      {workshop.title}
+                      <span className="ml-2 text-[10px] uppercase text-ink-light">{workshop.modality}</span>
+                    </span>
+                    <span className="text-xs text-ink-light font-medium">{formatPrice(workshop.price)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {totalItems > 0 && (
               <div className="mt-3 p-3 bg-chocolate-50 rounded-lg flex items-center justify-between">
-                <span className="text-sm text-ink">Precio original ({formData.courseIds.length} cursos):</span>
+                <span className="text-sm text-ink">
+                  Precio original ({formData.courseIds.length} cursos + {formData.workshopIds.length} talleres):
+                </span>
                 <span className="text-sm font-semibold text-ink">{formatPrice(originalPrice)}</span>
               </div>
             )}
@@ -293,7 +362,7 @@ export default function BundleManager() {
           <div className="flex gap-3 pt-4 border-t border-chocolate-100/20">
             <button
               onClick={handleSave}
-              disabled={!formData.title || formData.courseIds.length < 2}
+              disabled={!formData.title || totalItems < 2}
               className="inline-flex items-center gap-2 btn-primary btn-md rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Check className="w-4 h-4" />
@@ -336,6 +405,7 @@ export default function BundleManager() {
         <div className="space-y-4">
           {bundles.map(bundle => {
             const bundleCourses = getBundleCourses(bundle, courses);
+            const bundleWorkshops = getBundleWorkshops(bundle, workshops);
             return (
               <div
                 key={bundle.id}
@@ -381,15 +451,26 @@ export default function BundleManager() {
                         <BookOpen className="w-3.5 h-3.5" />
                         {bundleCourses.length} cursos
                       </span>
+                      {bundleWorkshops.length > 0 && (
+                        <span className="flex items-center gap-1">
+                          <CalendarDays className="w-3.5 h-3.5" />
+                          {bundleWorkshops.length} {bundleWorkshops.length === 1 ? 'taller' : 'talleres'}
+                        </span>
+                      )}
                       <span className="line-through">{formatPrice(bundle.originalPrice)}</span>
                       <span className="font-semibold text-chocolate">{formatPrice(bundle.price)}</span>
                     </div>
 
-                    {/* Course pills */}
+                    {/* Item pills */}
                     <div className="flex flex-wrap gap-1 mt-2">
                       {bundleCourses.map(course => (
                         <span key={course.id} className="text-[10px] bg-chocolate-50 text-chocolate px-2 py-0.5 rounded-full">
                           {course.title}
+                        </span>
+                      ))}
+                      {bundleWorkshops.map(workshop => (
+                        <span key={workshop.id} className="text-[10px] bg-gold/10 text-gold px-2 py-0.5 rounded-full">
+                          {workshop.title}
                         </span>
                       ))}
                     </div>
