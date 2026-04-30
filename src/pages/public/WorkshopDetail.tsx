@@ -13,6 +13,8 @@ import { paymentsService } from '@/services/payments';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { formatPrice } from '@/utils/format';
+import { workshopCapacityStatus } from '@/utils/capacity';
+import { CapacityBadge } from '@/components/ui/CapacityBadge';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -126,7 +128,8 @@ export default function WorkshopDetail() {
   const effectivePrice = workshop.discountPrice ?? workshop.price;
   const seatsLeft =
     workshop.capacity != null ? Math.max(workshop.capacity - workshop.registeredCount, 0) : null;
-  const soldOut = seatsLeft === 0;
+  const capacityStatus = workshopCapacityStatus(workshop);
+  const soldOut = capacityStatus.kind === 'sold_out';
 
   // Resolve prerequisite courses
   const prereqCourses = (workshop.prerequisiteCourseIds ?? [])
@@ -177,11 +180,14 @@ export default function WorkshopDetail() {
                 )}
               </div>
 
-              {workshop.discountLabel && (
-                <span className="inline-block bg-success-light text-success text-xs font-bold px-2.5 py-1 rounded-full mb-4">
-                  {workshop.discountLabel}
-                </span>
-              )}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {workshop.discountLabel && capacityStatus.kind !== 'low' && !soldOut && (
+                  <span className="inline-block bg-success-light text-success text-xs font-bold px-2.5 py-1 rounded-full">
+                    {workshop.discountLabel}
+                  </span>
+                )}
+                <CapacityBadge status={capacityStatus} variant="inline" />
+              </div>
 
               <div className="mb-4">
                 <div className="flex items-baseline gap-3">

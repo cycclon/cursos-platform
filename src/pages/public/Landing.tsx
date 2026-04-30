@@ -5,12 +5,19 @@ import { coursesService } from '@/services/courses';
 import { teacherService } from '@/services/teacher';
 import { testimonialsService } from '@/services/testimonials';
 import { bundlesService } from '@/services/bundles';
+import { workshopsService } from '@/services/workshops';
 import { formatPrice } from '@/utils/format';
+import { bundleCapacityStatus } from '@/utils/capacity';
+import { CapacityBadge } from '@/components/ui/CapacityBadge';
 import CourseCard from '@/components/course/CourseCard';
-import type { Bundle, Course } from '@/types';
+import type { Bundle, Course, Workshop } from '@/types';
 
 function getBundleCourses(bundle: Bundle, courses: Course[]): Course[] {
   return bundle.courseIds.map(id => courses.find(c => c.id === id)).filter(Boolean) as Course[];
+}
+
+function getBundleWorkshops(bundle: Bundle, workshops: Workshop[]): Workshop[] {
+  return (bundle.workshopIds ?? []).map(id => workshops.find(w => w.id === id)).filter(Boolean) as Workshop[];
 }
 
 export default function Landing() {
@@ -32,6 +39,11 @@ export default function Landing() {
   const { data: bundles = [] } = useQuery({
     queryKey: ['bundles'],
     queryFn: bundlesService.getBundles,
+  });
+
+  const { data: workshops = [] } = useQuery({
+    queryKey: ['workshops'],
+    queryFn: () => workshopsService.getWorkshops(),
   });
 
   const featured = courses.filter(c => c.featured);
@@ -184,28 +196,42 @@ export default function Landing() {
             <div className="grid md:grid-cols-2 gap-6 stagger-children">
               {featuredBundles.map(bundle => {
                 const bundleCourses = getBundleCourses(bundle, courses);
+                const bundleWorkshops = getBundleWorkshops(bundle, workshops);
                 const savings = bundle.originalPrice - bundle.price;
+                const capacityStatus = bundleCapacityStatus(bundleWorkshops);
+                const isSoldOut = capacityStatus.kind === 'sold_out';
                 return (
                   <Link
                     key={bundle.id}
                     to={`/combos/${bundle.slug}`}
-                    className="group flex flex-col sm:flex-row bg-parchment rounded-xl overflow-hidden shadow-warm border border-chocolate-100/20 card-accent"
+                    className={`group flex flex-col sm:flex-row bg-parchment rounded-xl overflow-hidden shadow-warm border border-chocolate-100/20 card-accent ${
+                      isSoldOut ? 'opacity-80' : ''
+                    }`}
                   >
-                    <div className="sm:w-48 shrink-0 aspect-[16/10] sm:aspect-auto overflow-hidden bg-chocolate-50">
+                    <div className="sm:w-48 shrink-0 aspect-[16/10] sm:aspect-auto overflow-hidden bg-chocolate-50 relative">
                       {bundle.imageUrl && (
                         <img
                           src={bundle.imageUrl}
                           alt={bundle.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${
+                            isSoldOut ? 'grayscale' : ''
+                          }`}
                         />
                       )}
+                      <CapacityBadge
+                        status={capacityStatus}
+                        variant="overlay"
+                        className="absolute top-3 left-3"
+                      />
                     </div>
                     <div className="p-5 flex flex-col justify-between flex-1">
                       <div>
                         <div className="flex items-center gap-2 mb-2">
                           <Package className="w-4 h-4 text-gold" />
                           <span className="text-xs font-semibold text-gold uppercase tracking-wider">{bundleCourses.length} cursos</span>
-                          <span className="bg-error text-cream text-xs font-bold px-2 py-0.5 rounded-full ml-auto">{bundle.discountLabel}</span>
+                          {bundle.discountLabel && !isSoldOut && capacityStatus.kind !== 'low' && (
+                            <span className="bg-error text-cream text-xs font-bold px-2 py-0.5 rounded-full ml-auto">{bundle.discountLabel}</span>
+                          )}
                         </div>
                         <h3 className="font-display text-lg font-bold text-ink group-hover:text-chocolate transition-colors mb-1">
                           {bundle.title}

@@ -164,38 +164,56 @@ export default function TeacherDashboard() {
         </div>
       </div>
 
-      {/* Course performance table */}
+      {/* Resource performance table */}
       <div className="bg-parchment rounded-xl border border-chocolate-100/20 shadow-warm overflow-hidden">
         <div className="p-6 pb-0">
           <h2 className="font-display text-lg font-bold text-ink mb-1">Rendimiento por curso</h2>
-          <p className="text-xs text-ink-light">Métricas acumuladas de todos tus cursos.</p>
+          <p className="text-xs text-ink-light">Métricas acumuladas de cursos, talleres y combos.</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-chocolate-100/20">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Curso</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Vistas</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Recurso</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Tipo</th>
                 <th className="text-right px-6 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Inscripciones</th>
                 <th className="text-right px-6 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Ingresos</th>
                 <th className="text-right px-6 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Valoración</th>
               </tr>
             </thead>
             <tbody>
-              {courseStats.map(cs => (
-                <tr key={cs.courseId} className="border-b border-chocolate-100/10 hover:bg-cream-dark/30 transition-colors">
-                  <td className="px-6 py-4 font-medium text-ink">{cs.courseTitle}</td>
-                  <td className="px-6 py-4 text-right text-ink-light">{cs.views.toLocaleString()}</td>
-                  <td className="px-6 py-4 text-right text-ink-light">{cs.enrollments}</td>
-                  <td className="px-6 py-4 text-right font-semibold text-ink">{formatPrice(cs.revenue)}</td>
-                  <td className="px-6 py-4 text-right">
-                    <span className="inline-flex items-center gap-1 text-gold">
-                      <Star className="w-3.5 h-3.5 fill-gold" />
-                      {cs.avgRating}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {courseStats.map(cs => {
+                const typeStyles =
+                  cs.type === 'course' ? 'bg-chocolate-50 text-chocolate'
+                  : cs.type === 'workshop' ? 'bg-gold/10 text-gold'
+                  : 'bg-success-light text-success';
+                const typeLabel =
+                  cs.type === 'course' ? 'Curso'
+                  : cs.type === 'workshop' ? 'Taller'
+                  : 'Combo';
+                return (
+                  <tr key={`${cs.type}-${cs.id}`} className="border-b border-chocolate-100/10 hover:bg-cream-dark/30 transition-colors">
+                    <td className="px-6 py-4 font-medium text-ink">{cs.title}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${typeStyles}`}>
+                        {typeLabel}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right text-ink-light">{cs.enrollments}</td>
+                    <td className="px-6 py-4 text-right font-semibold text-ink">{formatPrice(cs.revenue)}</td>
+                    <td className="px-6 py-4 text-right">
+                      {cs.type === 'course' ? (
+                        <span className="inline-flex items-center gap-1 text-gold">
+                          <Star className="w-3.5 h-3.5 fill-gold" />
+                          {cs.avgRating}
+                        </span>
+                      ) : (
+                        <span className="text-ink-light/60">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

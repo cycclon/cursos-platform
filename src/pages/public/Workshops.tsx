@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, CalendarDays, Video, MapPin, Users, Clock } from 'lucide-react';
 import { workshopsService } from '@/services/workshops';
 import { formatPrice } from '@/utils/format';
+import { workshopCapacityStatus } from '@/utils/capacity';
+import { CapacityBadge } from '@/components/ui/CapacityBadge';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -57,12 +59,16 @@ export default function Workshops() {
             {workshops.map(workshop => {
               const seatsLeft =
                 workshop.capacity != null ? Math.max(workshop.capacity - workshop.registeredCount, 0) : null;
+              const capacityStatus = workshopCapacityStatus(workshop);
+              const isSoldOut = capacityStatus.kind === 'sold_out';
               const effectivePrice = workshop.discountPrice ?? workshop.price;
               return (
                 <Link
                   key={workshop.id}
                   to={`/talleres/${workshop.slug}`}
-                  className="group block bg-parchment rounded-xl overflow-hidden card-accent shadow-warm"
+                  className={`group block bg-parchment rounded-xl overflow-hidden card-accent shadow-warm ${
+                    isSoldOut ? 'opacity-80' : ''
+                  }`}
                 >
                   {/* Image */}
                   <div className="relative aspect-[16/10] overflow-hidden bg-chocolate-50">
@@ -70,18 +76,25 @@ export default function Workshops() {
                       <img
                         src={workshop.imageUrl}
                         alt={workshop.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+                          isSoldOut ? 'grayscale' : ''
+                        }`}
                       />
                     )}
                     <span className="absolute top-3 right-3 inline-flex items-center gap-1 bg-chocolate text-cream text-xs font-bold px-2.5 py-1 rounded-full uppercase">
                       {workshop.modality === 'online' ? <Video className="w-3 h-3" /> : <MapPin className="w-3 h-3" />}
                       {workshop.modality}
                     </span>
-                    {workshop.discountLabel && (
+                    {workshop.discountLabel && !isSoldOut && capacityStatus.kind !== 'low' && (
                       <span className="absolute top-3 left-3 bg-error text-cream text-xs font-bold px-2.5 py-1 rounded-full">
                         {workshop.discountLabel}
                       </span>
                     )}
+                    <CapacityBadge
+                      status={capacityStatus}
+                      variant="overlay"
+                      className="absolute top-3 left-3"
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-ink/20 to-transparent" />
                   </div>
 

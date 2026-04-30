@@ -169,9 +169,16 @@ export interface SalesData {
   students: number;
 }
 
+export type ResourceStatType = 'course' | 'workshop' | 'bundle';
+
 export interface CourseStat {
+  /** Legacy id field — equals `id` */
   courseId: string;
+  /** Legacy title field — equals `title` */
   courseTitle: string;
+  id: string;
+  type: ResourceStatType;
+  title: string;
   views: number;
   enrollments: number;
   revenue: number;

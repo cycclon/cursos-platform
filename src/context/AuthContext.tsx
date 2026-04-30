@@ -10,7 +10,11 @@ interface AuthContextType {
   isLoading: boolean;
   loginWithGoogle: () => void;
   loginWithEmail: (data: { email: string; password: string }) => Promise<void>;
-  register: (data: { name: string; email: string; password: string }) => Promise<void>;
+  register: (data: { name: string; email: string; password: string }) => Promise<{
+    status: 'verification_sent';
+    email: string;
+    message: string;
+  }>;
   logout: () => Promise<void>;
 }
 
@@ -36,8 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (data: { name: string; email: string; password: string }) => {
-    const newUser = await authService.register(data);
-    queryClient.setQueryData(['auth', 'me'], newUser);
+    // Account is no longer activated immediately — user receives a verification
+    // email and is signed in only after they click the link.
+    return authService.register(data);
   };
 
   const logout = async () => {

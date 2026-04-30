@@ -8,7 +8,10 @@ export const authService = {
   logout: () => api.post<void>('/auth/logout'),
   getGoogleLoginUrl: () => `${API_BASE}/auth/google`,
   register: (data: { name: string; email: string; password: string }) =>
-    api.post<User>('/auth/register', data),
+    api.post<{ status: 'verification_sent'; email: string; message: string }>(
+      '/auth/register',
+      data,
+    ),
   login: (data: { email: string; password: string }) =>
     api.post<User>('/auth/login', data),
 };

@@ -11,6 +11,8 @@ import { paymentsService } from '@/services/payments';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { formatPrice } from '@/utils/format';
+import { bundleCapacityStatus } from '@/utils/capacity';
+import { CapacityBadge } from '@/components/ui/CapacityBadge';
 import CourseCard from '@/components/course/CourseCard';
 import type { Bundle, Course, Workshop } from '@/types';
 import { CalendarDays, Video, MapPin } from 'lucide-react';
@@ -142,6 +144,8 @@ export default function BundleDetail() {
   const bundleWorkshops = getBundleWorkshops(bundle, workshops);
   const totalModules = bundleCourses.reduce((sum, c) => sum + (c.modules?.length ?? 0), 0);
   const savings = bundle.originalPrice - bundle.price;
+  const capacityStatus = bundleCapacityStatus(bundleWorkshops);
+  const isSoldOut = capacityStatus.kind === 'sold_out';
 
   const enrolledCourseIds = new Set(enrollments.map(e => e.courseId));
   const enrolledInBundle = bundleCourses.filter(c => enrolledCourseIds.has(c.id));
@@ -181,11 +185,14 @@ export default function BundleDetail() {
                   </div>
                 </div>
               </div>
-              {bundle.discountLabel && (
-                <span className="inline-block bg-success-light text-success text-xs font-bold px-2.5 py-1 rounded-full mb-4">
-                  {bundle.discountLabel}
-                </span>
-              )}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {bundle.discountLabel && capacityStatus.kind !== 'low' && !isSoldOut && (
+                  <span className="inline-block bg-success-light text-success text-xs font-bold px-2.5 py-1 rounded-full">
+                    {bundle.discountLabel}
+                  </span>
+                )}
+                <CapacityBadge status={capacityStatus} variant="inline" />
+              </div>
               <div className="mb-4">
                 <div className="flex items-baseline gap-3">
                   <span className="font-display text-3xl font-bold text-chocolate">{formatPrice(bundle.price)}</span>
@@ -219,10 +226,10 @@ export default function BundleDetail() {
                   </div>
                   <button
                     onClick={handleEnroll}
-                    disabled={enrolling}
+                    disabled={enrolling || isSoldOut}
                     className="btn-primary btn-lg btn-full rounded-xl disabled:opacity-60"
                   >
-                    {enrolling ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirmar inscripción'}
+                    {enrolling ? <Loader2 className="w-4 h-4 animate-spin" /> : isSoldOut ? 'Combo agotado' : 'Confirmar inscripción'}
                   </button>
                   <button
                     onClick={() => setShowConfirm(false)}
@@ -243,11 +250,16 @@ export default function BundleDetail() {
                   )}
                   <button
                     onClick={handleEnroll}
-                    disabled={enrolling}
+                    disabled={enrolling || isSoldOut}
                     className="btn-primary btn-lg btn-full rounded-xl disabled:opacity-60"
                   >
-                    {enrolling ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Inscribirme ahora'}
+                    {enrolling ? <Loader2 className="w-4 h-4 animate-spin" /> : isSoldOut ? 'Combo agotado' : 'Inscribirme ahora'}
                   </button>
+                  {isSoldOut && (
+                    <p className="mt-3 text-xs text-ink-light">
+                      Uno de los talleres incluidos en este combo ya no tiene cupos disponibles.
+                    </p>
+                  )}
                 </>
               )}
 

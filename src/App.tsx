@@ -17,6 +17,7 @@ import Bundles from './pages/public/Bundles'
 import BundleDetail from './pages/public/BundleDetail'
 import Login from './pages/public/Login'
 import Register from './pages/public/Register'
+import VerifyEmail from './pages/public/VerifyEmail'
 import Terms from './pages/public/Terms'
 import Privacy from './pages/public/Privacy'
 import Refund from './pages/public/Refund'
@@ -88,6 +89,7 @@ export default function App() {
           <Route path="/preguntas-frecuentes" element={<Faq />} />
           <Route path="/ingresar" element={<Login />} />
           <Route path="/registrarse" element={<Register />} />
+          <Route path="/verificar-email" element={<VerifyEmail />} />
           <Route path="/terminos-y-condiciones" element={<Terms />} />
           <Route path="/politica-de-privacidad" element={<Privacy />} />
           <Route path="/politica-de-reembolso" element={<Refund />} />

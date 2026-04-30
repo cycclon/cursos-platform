@@ -34,9 +34,16 @@ export default function Statistics() {
   }
 
   const totalViews = courseStats.reduce((sum, c) => sum + c.views, 0);
-  const totalEnrollments = courseStats.reduce((sum, c) => sum + c.enrollments, 0);
+  // Exclude bundles from the enrollments sum: each bundle purchase already
+  // produced the course/workshop enrollments counted in their respective rows.
+  const totalEnrollments = courseStats
+    .filter((c) => c.type !== 'bundle')
+    .reduce((sum, c) => sum + c.enrollments, 0);
   const totalRevenue = salesData.reduce((sum, d) => sum + d.revenue, 0);
-  const avgRating = courseStats.length > 0 ? courseStats.reduce((sum, c) => sum + c.avgRating, 0) / courseStats.length : 0;
+  const ratedCourses = courseStats.filter((c) => c.type === 'course' && c.avgRating > 0);
+  const avgRating = ratedCourses.length > 0
+    ? ratedCourses.reduce((sum, c) => sum + c.avgRating, 0) / ratedCourses.length
+    : 0;
 
   return (
     <div>
@@ -122,35 +129,38 @@ export default function Statistics() {
         </div>
       </div>
 
-      {/* Course comparison */}
+      {/* Resource comparison */}
       <div className="bg-parchment rounded-xl p-6 border border-chocolate-100/20 shadow-warm">
         <h2 className="font-display text-lg font-bold text-ink mb-6">Comparativa por curso</h2>
         <div className="space-y-4">
           {courseStats.map(cs => {
-            const maxViews = Math.max(...courseStats.map(c => c.views));
-            const maxEnrollments = Math.max(...courseStats.map(c => c.enrollments));
+            const maxEnrollments = Math.max(1, ...courseStats.map(c => c.enrollments));
+            const maxRevenue = Math.max(1, ...courseStats.map(c => c.revenue));
+            const typeStyles =
+              cs.type === 'course' ? 'bg-chocolate-50 text-chocolate'
+              : cs.type === 'workshop' ? 'bg-gold/10 text-gold'
+              : 'bg-success-light text-success';
+            const typeLabel =
+              cs.type === 'course' ? 'Curso'
+              : cs.type === 'workshop' ? 'Taller'
+              : 'Combo';
             return (
-              <div key={cs.courseId} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-ink">{cs.courseTitle}</h3>
-                  <div className="flex items-center gap-1 text-xs text-gold">
-                    <Star className="w-3 h-3 fill-gold" />
-                    {cs.avgRating}
+              <div key={`${cs.type}-${cs.id}`} className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${typeStyles}`}>
+                      {typeLabel}
+                    </span>
+                    <h3 className="text-sm font-semibold text-ink truncate">{cs.title}</h3>
                   </div>
+                  {cs.type === 'course' && cs.avgRating > 0 && (
+                    <div className="flex items-center gap-1 text-xs text-gold shrink-0">
+                      <Star className="w-3 h-3 fill-gold" />
+                      {cs.avgRating.toFixed(1)}
+                    </div>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <div className="flex justify-between text-[10px] text-ink-light mb-1">
-                      <span>Vistas</span>
-                      <span>{cs.views.toLocaleString()}</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-chocolate-100/20">
-                      <div
-                        className="h-full rounded-full bg-chocolate"
-                        style={{ width: `${(cs.views / maxViews) * 100}%` }}
-                      />
-                    </div>
-                  </div>
                   <div>
                     <div className="flex justify-between text-[10px] text-ink-light mb-1">
                       <span>Inscripciones</span>
@@ -160,6 +170,18 @@ export default function Statistics() {
                       <div
                         className="h-full rounded-full bg-gold"
                         style={{ width: `${(cs.enrollments / maxEnrollments) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-[10px] text-ink-light mb-1">
+                      <span>Ingresos</span>
+                      <span>{formatPrice(cs.revenue)}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-success/20">
+                      <div
+                        className="h-full rounded-full bg-success"
+                        style={{ width: `${(cs.revenue / maxRevenue) * 100}%` }}
                       />
                     </div>
                   </div>

@@ -3,11 +3,18 @@ import { useQuery } from '@tanstack/react-query';
 import { BookOpen, ArrowRight, Package } from 'lucide-react';
 import { bundlesService } from '@/services/bundles';
 import { coursesService } from '@/services/courses';
+import { workshopsService } from '@/services/workshops';
 import { formatPrice } from '@/utils/format';
-import type { Bundle, Course } from '@/types';
+import { bundleCapacityStatus } from '@/utils/capacity';
+import { CapacityBadge } from '@/components/ui/CapacityBadge';
+import type { Bundle, Course, Workshop } from '@/types';
 
 function getBundleCourses(bundle: Bundle, courses: Course[]): Course[] {
   return bundle.courseIds.map(id => courses.find(c => c.id === id)).filter(Boolean) as Course[];
+}
+
+function getBundleWorkshops(bundle: Bundle, workshops: Workshop[]): Workshop[] {
+  return bundle.workshopIds.map(id => workshops.find(w => w.id === id)).filter(Boolean) as Workshop[];
 }
 
 export default function Bundles() {
@@ -21,7 +28,12 @@ export default function Bundles() {
     queryFn: coursesService.getCourses,
   });
 
-  const isLoading = loadingBundles || loadingCourses;
+  const { data: workshops = [], isLoading: loadingWorkshops } = useQuery({
+    queryKey: ['workshops'],
+    queryFn: () => workshopsService.getWorkshops(),
+  });
+
+  const isLoading = loadingBundles || loadingCourses || loadingWorkshops;
 
   return (
     <div>
@@ -57,14 +69,19 @@ export default function Bundles() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
             {bundles.map((bundle) => {
               const bundleCourses = getBundleCourses(bundle, courses);
+              const bundleWorkshops = getBundleWorkshops(bundle, workshops);
               const totalModules = bundleCourses.reduce((sum, c) => sum + (c.modules?.length ?? 0), 0);
               const savings = bundle.originalPrice - bundle.price;
+              const capacityStatus = bundleCapacityStatus(bundleWorkshops);
+              const isSoldOut = capacityStatus.kind === 'sold_out';
 
               return (
                 <Link
                   key={bundle.id}
                   to={`/combos/${bundle.slug}`}
-                  className="group block bg-parchment rounded-xl overflow-hidden card-accent shadow-warm"
+                  className={`group block bg-parchment rounded-xl overflow-hidden card-accent shadow-warm ${
+                    isSoldOut ? 'opacity-80' : ''
+                  }`}
                 >
                   {/* Image */}
                   <div className="relative aspect-[16/10] overflow-hidden bg-chocolate-50">
@@ -72,12 +89,21 @@ export default function Bundles() {
                       <img
                         src={bundle.imageUrl}
                         alt={bundle.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+                          isSoldOut ? 'grayscale' : ''
+                        }`}
                       />
                     )}
-                    <span className="absolute top-3 right-3 bg-error text-cream text-xs font-bold px-2.5 py-1 rounded-full">
-                      {bundle.discountLabel}
-                    </span>
+                    {bundle.discountLabel && !isSoldOut && capacityStatus.kind !== 'low' && (
+                      <span className="absolute top-3 right-3 bg-error text-cream text-xs font-bold px-2.5 py-1 rounded-full">
+                        {bundle.discountLabel}
+                      </span>
+                    )}
+                    <CapacityBadge
+                      status={capacityStatus}
+                      variant="overlay"
+                      className="absolute top-3 left-3"
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-ink/20 to-transparent" />
                   </div>
 
