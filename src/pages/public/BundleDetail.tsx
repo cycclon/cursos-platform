@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BookOpen, Award, ArrowRight, Package, CheckCircle2, ShieldCheck, AlertTriangle, Loader2 } from 'lucide-react';
+import { BookOpen, Award, ArrowRight, Package, CheckCircle2, ShieldCheck, AlertTriangle, CalendarClock, Loader2 } from 'lucide-react';
 import { bundlesService } from '@/services/bundles';
 import { coursesService } from '@/services/courses';
 import { workshopsService } from '@/services/workshops';
@@ -12,7 +12,9 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { formatPrice } from '@/utils/format';
 import { bundleCapacityStatus } from '@/utils/capacity';
+import { bundleAvailability, bundleAvailabilityReason } from '@/utils/bundleAvailability';
 import { CapacityBadge } from '@/components/ui/CapacityBadge';
+import { AvailabilityBadge } from '@/components/ui/AvailabilityBadge';
 import CourseCard from '@/components/course/CourseCard';
 import type { Bundle, Course, Workshop } from '@/types';
 import { CalendarDays, Video, MapPin } from 'lucide-react';
@@ -109,6 +111,8 @@ export default function BundleDetail() {
       const error = err as { status?: number; message?: string };
       if (error.status === 503 && error.message === 'mercadopago_not_connected') {
         toast.error('La docente está actualizando su forma de cobro. Volvé a intentar en unos minutos.');
+      } else if (error.message === 'bundle_course_not_available') {
+        toast.error('Uno de los cursos incluidos en este combo no está disponible.');
       } else {
         toast.error('Error al iniciar el pago. Intentá de nuevo.');
       }
@@ -146,6 +150,10 @@ export default function BundleDetail() {
   const savings = bundle.originalPrice - bundle.price;
   const capacityStatus = bundleCapacityStatus(bundleWorkshops);
   const isSoldOut = capacityStatus.kind === 'sold_out';
+  const availability = bundleAvailability(bundleCourses, bundleWorkshops);
+  const isUnavailable = availability.kind === 'unavailable';
+  const unavailabilityReason = bundleAvailabilityReason(availability);
+  const cantBuy = isSoldOut || isUnavailable;
 
   const enrolledCourseIds = new Set(enrollments.map(e => e.courseId));
   const enrolledInBundle = bundleCourses.filter(c => enrolledCourseIds.has(c.id));
@@ -186,12 +194,13 @@ export default function BundleDetail() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 mb-4">
-                {bundle.discountLabel && capacityStatus.kind !== 'low' && !isSoldOut && (
+                {bundle.discountLabel && capacityStatus.kind !== 'low' && !isSoldOut && !isUnavailable && (
                   <span className="inline-block bg-success-light text-success text-xs font-bold px-2.5 py-1 rounded-full">
                     {bundle.discountLabel}
                   </span>
                 )}
                 <CapacityBadge status={capacityStatus} variant="inline" />
+                <AvailabilityBadge status={availability} variant="inline" />
               </div>
               <div className="mb-4">
                 <div className="flex items-baseline gap-3">
@@ -226,10 +235,16 @@ export default function BundleDetail() {
                   </div>
                   <button
                     onClick={handleEnroll}
-                    disabled={enrolling || isSoldOut}
+                    disabled={enrolling || cantBuy}
                     className="btn-primary btn-lg btn-full rounded-xl disabled:opacity-60"
                   >
-                    {enrolling ? <Loader2 className="w-4 h-4 animate-spin" /> : isSoldOut ? 'Combo agotado' : 'Confirmar inscripción'}
+                    {enrolling
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : isUnavailable
+                        ? 'Combo no disponible'
+                        : isSoldOut
+                          ? 'Combo agotado'
+                          : 'Confirmar inscripción'}
                   </button>
                   <button
                     onClick={() => setShowConfirm(false)}
@@ -250,11 +265,34 @@ export default function BundleDetail() {
                   )}
                   <button
                     onClick={handleEnroll}
-                    disabled={enrolling || isSoldOut}
+                    disabled={enrolling || cantBuy}
                     className="btn-primary btn-lg btn-full rounded-xl disabled:opacity-60"
                   >
-                    {enrolling ? <Loader2 className="w-4 h-4 animate-spin" /> : isSoldOut ? 'Combo agotado' : 'Inscribirme ahora'}
+                    {enrolling
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : isUnavailable
+                        ? 'Combo no disponible'
+                        : isSoldOut
+                          ? 'Combo agotado'
+                          : 'Inscribirme ahora'}
                   </button>
+                  {isUnavailable && unavailabilityReason && (
+                    <div className="mt-3 flex items-start gap-2 p-3 rounded-xl bg-chocolate/5 border border-chocolate/10">
+                      <CalendarClock className="w-4 h-4 text-chocolate shrink-0 mt-0.5" />
+                      <div className="text-xs text-ink-light">
+                        <p>{unavailabilityReason}</p>
+                        {availability.kind === 'unavailable' && availability.items.length > 1 && (
+                          <ul className="list-disc list-inside mt-1 space-y-0.5">
+                            {availability.items.map((it) => (
+                              <li key={`${it.kind}-${it.id}`}>
+                                {it.title} <span className="text-ink-light/80">— {it.status}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   {isSoldOut && (
                     <p className="mt-3 text-xs text-ink-light">
                       Uno de los talleres incluidos en este combo ya no tiene cupos disponibles.

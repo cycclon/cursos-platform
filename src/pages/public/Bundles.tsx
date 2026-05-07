@@ -6,7 +6,9 @@ import { coursesService } from '@/services/courses';
 import { workshopsService } from '@/services/workshops';
 import { formatPrice } from '@/utils/format';
 import { bundleCapacityStatus } from '@/utils/capacity';
+import { bundleAvailability } from '@/utils/bundleAvailability';
 import { CapacityBadge } from '@/components/ui/CapacityBadge';
+import { AvailabilityBadge } from '@/components/ui/AvailabilityBadge';
 import type { Bundle, Course, Workshop } from '@/types';
 
 function getBundleCourses(bundle: Bundle, courses: Course[]): Course[] {
@@ -73,14 +75,19 @@ export default function Bundles() {
               const totalModules = bundleCourses.reduce((sum, c) => sum + (c.modules?.length ?? 0), 0);
               const savings = bundle.originalPrice - bundle.price;
               const capacityStatus = bundleCapacityStatus(bundleWorkshops);
+              const availability = bundleAvailability(bundleCourses, bundleWorkshops);
+              const isUnavailable = availability.kind === 'unavailable';
               const isSoldOut = capacityStatus.kind === 'sold_out';
+              const isDimmed = isSoldOut || isUnavailable;
+              const showDiscount =
+                !!bundle.discountLabel && !isUnavailable && !isSoldOut && capacityStatus.kind !== 'low';
 
               return (
                 <Link
                   key={bundle.id}
                   to={`/combos/${bundle.slug}`}
                   className={`group block bg-parchment rounded-xl overflow-hidden card-accent shadow-warm ${
-                    isSoldOut ? 'opacity-80' : ''
+                    isDimmed ? 'opacity-80' : ''
                   }`}
                 >
                   {/* Image */}
@@ -90,20 +97,28 @@ export default function Bundles() {
                         src={bundle.imageUrl}
                         alt={bundle.title}
                         className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
-                          isSoldOut ? 'grayscale' : ''
+                          isDimmed ? 'grayscale' : ''
                         }`}
                       />
                     )}
-                    {bundle.discountLabel && !isSoldOut && capacityStatus.kind !== 'low' && (
-                      <span className="absolute top-3 right-3 bg-error text-cream text-xs font-bold px-2.5 py-1 rounded-full">
-                        {bundle.discountLabel}
-                      </span>
-                    )}
+                    {/* Capacity (urgency) — top-left */}
                     <CapacityBadge
                       status={capacityStatus}
                       variant="overlay"
                       className="absolute top-3 left-3"
                     />
+                    {/* Availability (status) — top-right; discount yields when unavailable */}
+                    {isUnavailable ? (
+                      <AvailabilityBadge
+                        status={availability}
+                        variant="overlay"
+                        className="absolute top-3 right-3"
+                      />
+                    ) : showDiscount ? (
+                      <span className="absolute top-3 right-3 bg-error text-cream text-xs font-bold px-2.5 py-1 rounded-full">
+                        {bundle.discountLabel}
+                      </span>
+                    ) : null}
                     <div className="absolute inset-0 bg-gradient-to-t from-ink/20 to-transparent" />
                   </div>
 
