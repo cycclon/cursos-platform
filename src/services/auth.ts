@@ -12,6 +12,6 @@ export const authService = {
       '/auth/register',
       data,
     ),
-  login: (data: { email: string; password: string }) =>
+  login: (data: { email: string; password: string; rememberMe?: boolean }) =>
     api.post<User>('/auth/login', data),
 };

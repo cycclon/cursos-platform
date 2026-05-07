@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, Edit3, Eye, Trash2, Package, BookOpen, X, Check, DollarSign, MoreVertical,
-  CalendarDays,
+  CalendarDays, Loader2, Image as ImageIcon,
 } from 'lucide-react';
+import CourseImage from '@/components/ui/CourseImage';
 import { coursesService } from '@/services/courses';
 import { bundlesService } from '@/services/bundles';
 import { workshopsService } from '@/services/workshops';
+import { uploadsService } from '@/services/uploads';
 import { formatPrice } from '@/utils/format';
 import { useToast } from '@/context/ToastContext';
 import type { Bundle, Course, Workshop } from '@/types';
@@ -63,6 +65,24 @@ export default function BundleManager() {
   const [isEditing, setIsEditing] = useState(false);
   const [editingBundle, setEditingBundle] = useState<Bundle | null>(null);
   const [formData, setFormData] = useState(emptyForm);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const { url } = await uploadsService.uploadImage(file);
+      setFormData(prev => ({ ...prev, imageUrl: url }));
+      toast.success('Imagen subida correctamente.');
+    } catch {
+      toast.error('Error al subir la imagen.');
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  };
 
   const handleCreate = () => {
     setEditingBundle(null);
@@ -236,16 +256,36 @@ export default function BundleManager() {
             />
           </div>
 
-          {/* Image URL */}
+          {/* Image */}
           <div>
-            <label className="block text-sm font-medium text-ink mb-1.5">URL de Imagen</label>
-            <input
-              type="text"
-              value={formData.imageUrl}
-              onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
-              placeholder="https://images.unsplash.com/..."
-              className="w-full px-4 py-2.5 rounded-xl border border-chocolate-100/40 bg-parchment text-sm text-ink placeholder:text-ink-light/60 focus:outline-none focus:border-chocolate/40 focus:ring-2 focus:ring-chocolate/10 transition-all"
-            />
+            <label className="block text-sm font-medium text-ink mb-2">Imagen del combo</label>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="w-48 aspect-video rounded-lg overflow-hidden border border-chocolate-100/20 shrink-0">
+                <CourseImage src={formData.imageUrl} alt="Preview" />
+              </div>
+              <div className="flex-1 space-y-3">
+                <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                <button
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="inline-flex items-center gap-2 btn-secondary btn-sm rounded-xl"
+                >
+                  {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+                  {uploadingImage ? 'Subiendo...' : 'Subir imagen'}
+                </button>
+                <div>
+                  <label className="block text-xs text-ink-light mb-1">O pegá una URL</label>
+                  <input
+                    type="text"
+                    value={formData.imageUrl}
+                    onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
+                    placeholder="https://..."
+                    className="w-full px-4 py-2.5 rounded-xl border border-chocolate-100/40 bg-parchment text-sm text-ink placeholder:text-ink-light/60 focus:outline-none focus:border-chocolate/40 focus:ring-2 focus:ring-chocolate/10 transition-all"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Course Selection */}

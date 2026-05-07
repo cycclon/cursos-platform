@@ -9,7 +9,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   loginWithGoogle: () => void;
-  loginWithEmail: (data: { email: string; password: string }) => Promise<void>;
+  loginWithEmail: (data: { email: string; password: string; rememberMe?: boolean }) => Promise<void>;
   register: (data: { name: string; email: string; password: string }) => Promise<{
     status: 'verification_sent';
     email: string;
@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = authService.getGoogleLoginUrl();
   };
 
-  const loginWithEmail = async (data: { email: string; password: string }) => {
+  const loginWithEmail = async (data: { email: string; password: string; rememberMe?: boolean }) => {
     const loggedUser = await authService.login(data);
     queryClient.setQueryData(['auth', 'me'], loggedUser);
   };

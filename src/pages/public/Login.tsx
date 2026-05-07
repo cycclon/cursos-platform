@@ -10,6 +10,7 @@ export default function Login() {
   const toast = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -23,7 +24,7 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      await loginWithEmail({ email, password });
+      await loginWithEmail({ email, password, rememberMe });
       toast.success('Sesión iniciada correctamente.');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Ocurrió un error inesperado.');
@@ -104,6 +105,17 @@ export default function Login() {
                 />
               </div>
             </div>
+            <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={e => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-chocolate-100/50 bg-parchment text-chocolate accent-chocolate focus:ring-2 focus:ring-chocolate/20 focus:ring-offset-0 cursor-pointer"
+              />
+              <span className="text-sm text-ink-light group-hover:text-ink transition-colors">
+                Recordarme en este dispositivo
+              </span>
+            </label>
             <button
               type="submit"
               disabled={loading}
