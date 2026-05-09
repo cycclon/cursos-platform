@@ -217,6 +217,20 @@ export default function CoursePlayer() {
   }, [course, activeModuleId, activeVideo, enrollment, saveVideoProgressMutation]);
 
   // Video ended — auto-advance to next video or complete module
+  const handleDownloadMaterial = useCallback((moduleId: string, materialIndex: number, name: string) => {
+    const apiBase = import.meta.env.VITE_API_URL || '/api';
+    // Same-origin navigation: cookies are sent, backend authorizes, R2 responds
+    // with Content-Disposition: attachment so the browser downloads in place
+    // instead of navigating away from the player.
+    const a = document.createElement('a');
+    a.href = `${apiBase}/files/materials/${moduleId}/${materialIndex}/download`;
+    a.rel = 'noopener';
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }, []);
+
   const handleVideoEnded = useCallback(() => {
     if (!activeModule || !course || (!enrollment && !isOwner)) return;
 
@@ -504,7 +518,12 @@ export default function CoursePlayer() {
                       <span className="text-sm text-ink">{mat.name}</span>
                       <span className="text-xs text-ink-light">{mat.size}</span>
                     </div>
-                    <button className="p-2 text-chocolate hover:text-chocolate-dark transition-colors">
+                    <button
+                      onClick={() => handleDownloadMaterial(activeModule.id, idx, mat.name)}
+                      disabled={!mat.fileUrl}
+                      title={mat.fileUrl ? 'Descargar' : 'Archivo aún no disponible'}
+                      className="p-2 text-chocolate hover:text-chocolate-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
                       <Download className="w-4 h-4" />
                     </button>
                   </div>
