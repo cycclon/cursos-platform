@@ -36,6 +36,7 @@ export interface Module {
   videoUrl?: string;
   videoDuration?: string;
   videos: ModuleVideo[];
+  videoCount?: number;
   materials: Material[];
   isFree: boolean;
 }

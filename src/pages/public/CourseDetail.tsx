@@ -318,6 +318,7 @@ export default function CourseDetail() {
               <div className="space-y-3">
                 {course.modules.map(mod => {
                   const isOpen = expandedModule === mod.id;
+                  const videoCount = (mod.videos?.length ?? 0) > 0 ? mod.videos.length : (mod.videoCount ?? 0);
                   return (
                     <div
                       key={mod.id}
@@ -339,7 +340,7 @@ export default function CourseDetail() {
                             <span className="text-sm font-semibold text-ink block">{mod.title}</span>
                             <span className="text-xs text-ink-light">
                               {mod.videoDuration && `${mod.videoDuration} · `}
-                              {mod.materials.length} material{mod.materials.length !== 1 ? 'es' : ''}
+                              {videoCount} video{videoCount !== 1 ? 's' : ''} · {mod.materials.length} material{mod.materials.length !== 1 ? 'es' : ''}
                               {mod.isFree && <span className="text-success font-semibold ml-2">Gratis</span>}
                             </span>
                           </div>

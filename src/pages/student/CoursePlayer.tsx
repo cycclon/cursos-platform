@@ -522,7 +522,7 @@ export default function CoursePlayer() {
                       onClick={() => handleDownloadMaterial(activeModule.id, idx, mat.name)}
                       disabled={!mat.fileUrl}
                       title={mat.fileUrl ? 'Descargar' : 'Archivo aún no disponible'}
-                      className="p-2 text-chocolate hover:text-chocolate-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="p-2 text-chocolate hover:text-chocolate-dark transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Download className="w-4 h-4" />
                     </button>
