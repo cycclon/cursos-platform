@@ -185,6 +185,27 @@ export interface CourseStat {
   avgRating: number;
 }
 
+export interface SaleDetail {
+  id: string;
+  type: ResourceStatType;
+  amount: number;
+  status: 'pending' | 'approved' | 'rejected' | 'refunded';
+  paidAt: string | null;
+  createdAt: string | null;
+  mercadoPagoId: string | null;
+  student: {
+    id: string;
+    name: string;
+    email: string;
+    avatar: string | null;
+  } | null;
+  item: {
+    id: string;
+    title: string;
+    slug: string;
+  } | null;
+}
+
 export interface FAQ {
   id: string;
   question: string;
