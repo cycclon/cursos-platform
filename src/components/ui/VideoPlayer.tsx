@@ -175,12 +175,20 @@ export default function VideoPlayer({
       }
     };
 
+    // iOS Safari fires webkitendfullscreen when the user exits the native
+    // fullscreen player. The page often gets backgrounded right after, so
+    // flush a save synchronously while we're still on screen.
+    const handleIosFullscreenEnd = () => {
+      reportProgress();
+    };
+
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
     video.addEventListener('seeking', handleSeeking);
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('ended', handleEnded);
+    video.addEventListener('webkitendfullscreen', handleIosFullscreenEnd);
 
     return () => {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
@@ -189,8 +197,25 @@ export default function VideoPlayer({
       video.removeEventListener('seeking', handleSeeking);
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('ended', handleEnded);
+      video.removeEventListener('webkitendfullscreen', handleIosFullscreenEnd);
     };
   }, [provider, url, initialPosition, reportProgress, checkCompletion]);
+
+  // Flush a progress report when the tab/app is backgrounded. iOS Safari
+  // backgrounds the page on tab switch, app switch, or fullscreen exit, often
+  // before periodic saves or in-flight requests can complete.
+  useEffect(() => {
+    if (provider !== 'direct' && provider !== 'youtube') return;
+    const flushOnHide = () => {
+      if (document.visibilityState === 'hidden') reportProgress();
+    };
+    document.addEventListener('visibilitychange', flushOnHide);
+    window.addEventListener('pagehide', flushOnHide);
+    return () => {
+      document.removeEventListener('visibilitychange', flushOnHide);
+      window.removeEventListener('pagehide', flushOnHide);
+    };
+  }, [provider, reportProgress]);
 
   // ─── YouTube IFrame API ───
   // YouTube replaces our <div> with an <iframe>. When the effect re-runs,
@@ -461,6 +486,7 @@ export default function VideoPlayer({
           className="w-full h-full object-contain"
           controls
           controlsList="noplaybackrate"
+          playsInline
         />
       )}
 

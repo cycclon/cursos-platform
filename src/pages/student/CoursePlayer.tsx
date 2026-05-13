@@ -247,14 +247,34 @@ export default function CoursePlayer() {
     }
   }, [activeModule, activeModuleId, activeVideoIndex, moduleVideos, course, enrollment, queryClient, toast, seedLiveProgress]);
 
-  // Save progress on page unload
+  // Flush progress when the page is hidden or unloaded.
+  //
+  // iOS Safari fires `beforeunload` unreliably (and not at all on tab/app
+  // backgrounding), so we listen for `pagehide` and `visibilitychange:hidden`
+  // and deliver via `navigator.sendBeacon` — it survives backgrounding,
+  // whereas `fetch({ keepalive: true })` is frequently cancelled on iOS.
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const flushSave = () => {
       const data = latestProgressRef.current;
       if (!data) return;
 
       const apiBase = import.meta.env.VITE_API_URL || '/api';
       const url = `${apiBase}/enrollments/${data.courseId}/save-video-progress`;
+      const payload = JSON.stringify({
+        moduleId: data.moduleId,
+        videoId: data.videoId,
+        watchedSeconds: data.watchedSeconds,
+        maxReachedSeconds: data.maxReachedSeconds,
+        duration: data.duration,
+        lastPosition: data.lastPosition,
+      });
+
+      try {
+        const blob = new Blob([payload], { type: 'application/json' });
+        if (navigator.sendBeacon?.(url, blob)) return;
+      } catch {
+        // fall through
+      }
 
       try {
         fetch(url, {
@@ -262,22 +282,23 @@ export default function CoursePlayer() {
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           keepalive: true,
-          body: JSON.stringify({
-            moduleId: data.moduleId,
-            videoId: data.videoId,
-            watchedSeconds: data.watchedSeconds,
-            maxReachedSeconds: data.maxReachedSeconds,
-            duration: data.duration,
-            lastPosition: data.lastPosition,
-          }),
+          body: payload,
         });
       } catch {
         // Best effort
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') flushSave();
+    };
+
+    window.addEventListener('pagehide', flushSave);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('pagehide', flushSave);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   // Calculate module progress percentage from server data
