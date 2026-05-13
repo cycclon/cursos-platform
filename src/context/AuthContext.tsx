@@ -6,6 +6,7 @@ import { authService } from '@/services/auth';
 interface AuthContextType {
   user: User | null;
   role: UserRole;
+  isMainTeacher: boolean;
   isAuthenticated: boolean;
   isLoading: boolean;
   loginWithGoogle: () => void;
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user: user ?? null,
         role: user?.role ?? 'visitor',
+        isMainTeacher: !!user?.isMainTeacher,
         isAuthenticated: !!user,
         isLoading,
         loginWithGoogle,

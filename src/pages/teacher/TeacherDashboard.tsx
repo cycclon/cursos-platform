@@ -52,7 +52,10 @@ export default function TeacherDashboard() {
 
   const totalRevenue = salesData.reduce((sum, d) => sum + d.revenue, 0);
   const totalStudents = teacher?.totalStudents ?? 0;
-  const avgRating = courses.length > 0 ? courses.reduce((sum, c) => sum + c.rating, 0) / courses.length : 0;
+  const ratedCourses = courses.filter(c => c.reviewCount > 0);
+  const avgRating = ratedCourses.length > 0
+    ? ratedCourses.reduce((sum, c) => sum + c.rating, 0) / ratedCourses.length
+    : 0;
   const lastMonth = salesData[salesData.length - 1];
   const prevMonth = salesData[salesData.length - 2];
   const revenueChange = prevMonth && lastMonth

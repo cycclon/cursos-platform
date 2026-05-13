@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MessageSquare, Send } from 'lucide-react';
 import { reviewsService } from '@/services/reviews';
 import { useToast } from '@/context/ToastContext';
+import { useAuth } from '@/context/AuthContext';
 import StarRating from '@/components/ui/StarRating';
 import type { Review } from '@/types';
 
@@ -21,6 +22,7 @@ export default function ReviewsManager() {
 
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { isMainTeacher } = useAuth();
 
   const { data: reviews = [], isLoading } = useQuery({
     queryKey: ['teacher-reviews'],
@@ -173,10 +175,12 @@ export default function ReviewsManager() {
               {/* Teacher reply or reply form */}
               {review.teacherReply ? (
                 <div className="ml-4 pl-4 border-l-2 border-gold/30">
-                  <p className="text-xs font-semibold text-chocolate mb-1">Tu respuesta</p>
+                  <p className="text-xs font-semibold text-chocolate mb-1">
+                    {isMainTeacher ? 'Tu respuesta' : 'Respuesta del docente'}
+                  </p>
                   <p className="text-sm text-ink-light">{review.teacherReply}</p>
                 </div>
-              ) : replyingTo === review.id ? (
+              ) : isMainTeacher && replyingTo === review.id ? (
                 <div className="mt-2 ml-4 pl-4 border-l-2 border-chocolate/20">
                   <textarea
                     value={replyText}
@@ -204,13 +208,15 @@ export default function ReviewsManager() {
                     </button>
                   </div>
                 </div>
-              ) : (
+              ) : isMainTeacher ? (
                 <button
                   onClick={() => setReplyingTo(review.id)}
                   className="text-xs text-chocolate font-medium hover:text-chocolate-dark transition-colors"
                 >
                   Responder
                 </button>
+              ) : (
+                <p className="text-xs text-ink-light/70 italic">Sin respuesta del docente.</p>
               )}
             </div>
           ))}

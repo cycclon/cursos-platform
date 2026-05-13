@@ -6,6 +6,7 @@ export interface User {
   email: string;
   role: UserRole;
   avatar?: string;
+  isMainTeacher?: boolean;
 }
 
 export interface Teacher {
