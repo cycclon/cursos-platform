@@ -36,6 +36,9 @@ import WorkshopManager from './pages/teacher/WorkshopManager'
 import Workshops from './pages/public/Workshops'
 import WorkshopDetail from './pages/public/WorkshopDetail'
 import Statistics from './pages/teacher/Statistics'
+import ProgressTracking from './pages/teacher/ProgressTracking'
+import StudentDetail from './pages/teacher/StudentDetail'
+import MassReminders from './pages/teacher/MassReminders'
 import SalesDetail from './pages/teacher/SalesDetail'
 import FaqManager from './pages/teacher/FaqManager'
 import ReviewsManager from './pages/teacher/ReviewsManager'
@@ -120,12 +123,18 @@ export default function App() {
           <Route path="/admin/faq" element={<FaqManager />} />
           <Route path="/admin/opiniones" element={<ReviewsManager />} />
           <Route path="/admin/estadisticas" element={<Statistics />} />
+          <Route path="/admin/progreso" element={<ProgressTracking />} />
+          <Route path="/admin/estudiantes/:studentId" element={<StudentDetail />} />
+          <Route path="/admin/recordatorios" element={<MassReminders />} />
           <Route path="/admin/ventas" element={<SalesDetail />} />
         </Route>
 
         {/* Superuser routes */}
         <Route element={<DashboardLayout />}>
           <Route path="/superusuario" element={<SuperuserPanel />} />
+          <Route path="/superusuario/progreso" element={<ProgressTracking />} />
+          <Route path="/superusuario/estudiantes/:studentId" element={<StudentDetail />} />
+          <Route path="/superusuario/recordatorios" element={<MassReminders />} />
           <Route path="/superusuario/ventas" element={<SalesDetail />} />
         </Route>
       </Routes>

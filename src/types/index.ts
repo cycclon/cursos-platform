@@ -292,3 +292,178 @@ export interface WorkshopRosterEntry extends WorkshopRegistration {
   eligible: boolean;
   missing: { id: string; title: string; slug: string }[];
 }
+
+// ── Student progress tracking (teacher / superuser analytics) ──────────────
+
+export interface ProgressOverview {
+  totalCourses: number;
+  totalStudents: number;
+  totalEnrollments: number;
+  averageProgress: number;
+  completedEnrollments: number;
+  completionRate: number;
+}
+
+export interface CourseProgressRow {
+  courseId: string;
+  title: string;
+  slug: string;
+  imageUrl: string;
+  moduleCount: number;
+  enrolledCount: number;
+  averageProgress: number;
+  completedCount: number;
+}
+
+export interface ModuleProgressRow {
+  moduleId: string;
+  number: number;
+  title: string;
+  enrolledCount: number;
+  averageProgress: number;
+  completedCount: number;
+}
+
+export interface CourseModulesProgress {
+  course: { courseId: string; title: string };
+  enrolledCount: number;
+  modules: ModuleProgressRow[];
+}
+
+export interface CourseStudentProgressRow {
+  studentId: string;
+  name: string;
+  email: string;
+  avatar: string | null;
+  progress: number;
+  completedModules: number;
+  totalModules: number;
+  lastWatchedModule: string | null;
+  enrolledAt: string;
+  testPassed: boolean | null;
+  testScore: number | null;
+  certificateId: string | null;
+}
+
+export interface CourseStudentsProgress {
+  course: { courseId: string; title: string };
+  students: CourseStudentProgressRow[];
+}
+
+export interface StudentModuleProgress {
+  moduleId: string;
+  number: number;
+  title: string;
+  progress: number;
+  completed: boolean;
+}
+
+export interface StudentEnrollmentProgress {
+  courseId: string;
+  courseTitle: string;
+  courseSlug: string;
+  courseImageUrl: string;
+  progress: number;
+  completedModulesCount: number;
+  totalModules: number;
+  enrolledAt: string;
+  testPassed: boolean | null;
+  testScore: number | null;
+  certificateId: string | null;
+  modules: StudentModuleProgress[];
+}
+
+export interface StudentProgressDetail {
+  student: {
+    id: string;
+    name: string;
+    email: string;
+    avatar: string | null;
+    role: UserRole;
+    createdAt: string;
+  };
+  enrollments: StudentEnrollmentProgress[];
+  summary: {
+    courseCount: number;
+    averageProgress: number;
+    completedCourses: number;
+  };
+}
+
+// ── Reminders (teacher → student outreach) ─────────────────────────────────
+
+export type ReminderStatus = 'sent' | 'logged' | 'failed';
+export type ReminderSource = 'single' | 'mass';
+
+export interface ReminderCourseSnapshot {
+  courseId: string;
+  title: string;
+  progress: number;
+  remainingModules: number;
+}
+
+export interface Reminder {
+  id: string;
+  subject: string;
+  body: string;
+  signature: string;
+  courses: ReminderCourseSnapshot[];
+  status: ReminderStatus;
+  source: ReminderSource;
+  teacherName: string;
+  sentAt: string;
+}
+
+export interface ReminderDraftCourse {
+  courseId: string;
+  title: string;
+  progress: number;
+  remainingModules: number;
+  remainingTitles: string[];
+}
+
+export interface ReminderDraft {
+  student: { id: string; name: string; email: string };
+  canSend: boolean;
+  courses: ReminderDraftCourse[];
+  draft: { subject: string; body: string; signature: string };
+  lastReminderAt: string | null;
+  recentlyReminded: boolean;
+  cooldownDays: number;
+}
+
+export interface MassReminderParams {
+  staleDays: number;
+  courseIds?: string[];
+  cooldownDays: number;
+}
+
+export interface MassReminderStudent {
+  studentId: string;
+  name: string;
+  email: string;
+  staleDays: number;
+  lastReminderAt: string | null;
+  willSkip: boolean;
+  courses: { courseId: string; title: string; progress: number }[];
+}
+
+export interface MassReminderPreview {
+  params: { staleDays: number; courseIds: string[]; cooldownDays: number };
+  total: number;
+  willSend: number;
+  willSkip: number;
+  truncated: boolean;
+  students: MassReminderStudent[];
+}
+
+export interface MassReminderResult {
+  matched: number;
+  attempted: number;
+  skipped: number;
+  sent: number;
+  logged: number;
+  failed: number;
+  truncated: boolean;
+  failures: { studentId: string; email: string; error: string }[];
+}

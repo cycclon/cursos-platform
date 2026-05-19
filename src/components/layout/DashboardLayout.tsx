@@ -6,7 +6,7 @@ import { coursesService } from '@/services/courses';
 import { bundlesService } from '@/services/bundles';
 import { workshopsService } from '@/services/workshops';
 import {
-  LayoutDashboard, BookOpen, BarChart3,
+  LayoutDashboard, BookOpen, BarChart3, TrendingUp, Bell,
   ChevronRight, Package, HelpCircle, MessageSquare, UserCircle, CalendarDays, Receipt,
 } from 'lucide-react';
 
@@ -46,11 +46,15 @@ export default function DashboardLayout() {
     { to: '/admin/faq', label: 'FAQ', icon: HelpCircle },
     { to: '/admin/opiniones', label: 'Opiniones', icon: MessageSquare },
     { to: '/admin/estadisticas', label: 'Estadísticas', icon: BarChart3 },
+    { to: '/admin/progreso', label: 'Progreso', icon: TrendingUp },
+    { to: '/admin/recordatorios', label: 'Recordatorios', icon: Bell },
     { to: '/admin/ventas', label: 'Detalle de Ventas', icon: Receipt },
   ];
 
   const superuserLinks = [
     { to: '/superusuario', label: 'Panel General', icon: LayoutDashboard },
+    { to: '/superusuario/progreso', label: 'Progreso', icon: TrendingUp },
+    { to: '/superusuario/recordatorios', label: 'Recordatorios', icon: Bell },
     { to: '/superusuario/ventas', label: 'Detalle de Ventas', icon: Receipt },
   ];
 
