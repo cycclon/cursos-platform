@@ -88,6 +88,19 @@ export default function CoursePlayer() {
     retry: false,
   });
 
+  // Modules without videos can't be auto-completed by watch time, so the
+  // student marks them done manually once they've reviewed the material.
+  const completeModuleMutation = useMutation({
+    mutationFn: (vars: { courseId: string; moduleId: string }) =>
+      enrollmentsService.completeModule(vars.courseId, vars.moduleId),
+    onSuccess: () => {
+      invalidateEnrollments();
+      toast.success('¡Módulo completado!');
+    },
+    onError: () => toast.error('No se pudo marcar el módulo como completado.'),
+    retry: false,
+  });
+
   const course = courses.find(c => c.id === id);
   const enrollment = enrollments.find(e => e.courseId === id);
   // The course owner (teacher) can preview all content without being enrolled
@@ -551,6 +564,39 @@ export default function CoursePlayer() {
                 ))}
               </div>
             </div>
+          )}
+
+          {/* Video-less module: manual completion */}
+          {activeModule && moduleVideos.length === 0 && (
+            isCompleted(activeModule.id) ? (
+              <div className="mt-6 bg-success-light border border-success/20 rounded-xl p-5 flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
+                <p className="text-sm font-medium text-success">Completaste este módulo. ¡Bien hecho!</p>
+              </div>
+            ) : enrollment ? (
+              <div className="mt-6 bg-parchment rounded-xl p-6 border border-chocolate-100/20">
+                <h3 className="font-display text-lg font-semibold text-ink mb-1">¿Terminaste este módulo?</h3>
+                <p className="text-sm text-ink-light mb-4">
+                  Este módulo no tiene video. Cuando hayas revisado el material, marcalo como completado
+                  para reflejar tu avance en el curso.
+                </p>
+                <button
+                  onClick={() => completeModuleMutation.mutate({ courseId: course.id, moduleId: activeModule.id })}
+                  disabled={completeModuleMutation.isPending}
+                  className="btn-primary btn-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  {completeModuleMutation.isPending ? 'Guardando…' : 'Marcar como completado'}
+                </button>
+              </div>
+            ) : isOwner ? (
+              <div className="mt-6 bg-chocolate-50 border border-chocolate-100/40 rounded-xl p-5">
+                <p className="text-sm text-ink-light">
+                  Vista previa: este módulo no tiene video. Los estudiantes inscriptos podrán marcarlo
+                  como completado desde aquí.
+                </p>
+              </div>
+            ) : null
           )}
         </div>
 
