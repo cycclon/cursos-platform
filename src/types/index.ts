@@ -287,10 +287,22 @@ export interface WorkshopAccessResponse {
   modality: WorkshopModality;
 }
 
+export interface PrereqProgress {
+  id: string;
+  title: string;
+  slug: string;
+  progress: number;
+  enrolled: boolean;
+  completed: boolean;
+  hasTest: boolean;
+  testPassed: boolean | null;
+}
+
 export interface WorkshopRosterEntry extends WorkshopRegistration {
   student: { id: string; name: string; email: string } | null;
   eligible: boolean;
   missing: { id: string; title: string; slug: string }[];
+  prereqProgress: PrereqProgress[];
 }
 
 // ── Student progress tracking (teacher / superuser analytics) ──────────────
