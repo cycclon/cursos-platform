@@ -127,9 +127,10 @@ export default function BugReportDrawer({
       aria-modal="true"
       aria-label="Reportar un problema"
     >
-      {/* Backdrop */}
+      {/* Backdrop — deliberately no blur and barely dimmed: the drawer sits
+          beside the page so the user can keep looking at what they're reporting. */}
       <div
-        className="absolute inset-0 bg-ink/40 backdrop-blur-[2px] animate-fade-in"
+        className="absolute inset-0 bg-ink/10 animate-fade-in"
         onMouseDown={() => !submitting && onClose()}
       />
 

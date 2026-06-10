@@ -579,6 +579,28 @@ function CustomEmail({
 
   const canSend = subject.trim().length > 0 && body.trim().length > 0 && !mutation.isPending;
 
+  // The reporter unsubscribed from this ticket's emails: the backend rejects
+  // custom messages with 409, so show why instead of a composer that can't send.
+  if (!report.notifyOnStatusChange) {
+    return (
+      <div className="rounded-xl border border-chocolate-100/30 bg-parchment p-4">
+        <p className="flex items-center gap-1.5 text-xs font-semibold text-ink-light mb-2.5">
+          <Mail className="w-3.5 h-3.5" /> Enviar correo personalizado
+        </p>
+        <div className="flex items-start gap-2.5 rounded-lg bg-gold/10 border border-gold/30 px-3.5 py-3">
+          <BellOff className="w-4 h-4 text-gold-dark shrink-0 mt-0.5" />
+          <div className="text-xs leading-relaxed">
+            <p className="font-semibold text-ink">El estudiante canceló las notificaciones de este reporte.</p>
+            <p className="text-ink-light mt-0.5">
+              Pidió no recibir más correos sobre este ticket, así que el envío de mensajes está deshabilitado.
+              Si te escribe por email y quiere seguir la conversación, podés responderle directamente desde tu casilla.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl border border-chocolate-100/30 bg-parchment p-4">
       <p className="flex items-center gap-1.5 text-xs font-semibold text-ink-light mb-2.5">
