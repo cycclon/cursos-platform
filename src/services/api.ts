@@ -85,11 +85,18 @@ function xhrUpload<T>(
       } catch {
         /* non-JSON error body, keep default message */
       }
+      recordClientLog('network', `HTTP ${xhr.status} POST ${path} (upload) — ${message}`);
       reject(new ApiError(xhr.status, message));
     };
 
-    xhr.onerror = () => reject(new ApiError(0, 'Error de red durante la subida'));
-    xhr.ontimeout = () => reject(new ApiError(0, 'La subida excedió el tiempo de espera'));
+    xhr.onerror = () => {
+      recordClientLog('network', `POST ${path} (upload) — error de red`);
+      reject(new ApiError(0, 'Error de red durante la subida'));
+    };
+    xhr.ontimeout = () => {
+      recordClientLog('network', `POST ${path} (upload) — tiempo de espera agotado`);
+      reject(new ApiError(0, 'La subida excedió el tiempo de espera'));
+    };
     xhr.onabort = () => reject(new ApiError(0, 'Subida cancelada'));
 
     xhr.send(formData);

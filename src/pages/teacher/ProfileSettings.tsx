@@ -8,12 +8,14 @@ import { teacherService } from '@/services/teacher';
 import { uploadsService } from '@/services/uploads';
 import { mercadoPagoService } from '@/services/mercadoPago';
 import { useToast } from '@/context/ToastContext';
+import { useAuth } from '@/context/AuthContext';
 
 const INPUT = 'w-full px-4 py-2.5 rounded-xl border border-chocolate-100/40 bg-parchment text-sm text-ink placeholder:text-ink-light/60 focus:outline-none focus:border-chocolate/40 focus:ring-2 focus:ring-chocolate/10 transition-all';
 
 export default function ProfileSettings() {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { isMainTeacher } = useAuth();
   const photoInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -25,6 +27,7 @@ export default function ProfileSettings() {
   const { data: mpStatus, isLoading: mpLoading } = useQuery({
     queryKey: ['mercadopago-status'],
     queryFn: mercadoPagoService.getStatus,
+    enabled: isMainTeacher,
   });
 
   const [isDisconnectingMp, setIsDisconnectingMp] = useState(false);
@@ -252,7 +255,8 @@ export default function ProfileSettings() {
         {/* Form column */}
         <div className="lg:col-span-2 space-y-6">
 
-          {/* Mercado Pago connection */}
+          {/* Mercado Pago connection — only the main teacher manages the linked account */}
+          {isMainTeacher && (
           <div
             className={`rounded-xl p-6 shadow-warm border ${
               mpStatus?.connected
@@ -367,6 +371,7 @@ export default function ProfileSettings() {
               </div>
             )}
           </div>
+          )}
 
           {/* Title */}
           <div className="bg-parchment rounded-xl p-6 border border-chocolate-100/20 shadow-warm">

@@ -62,8 +62,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={{ toast }}>
       {children}
 
-      {/* Toast container */}
-      <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2 pointer-events-none">
+      {/* Toast container — z-[200] keeps it above drawers/modals (z-[100]),
+          which are portaled into <body> after this node and would otherwise
+          paint over the toasts. */}
+      <div className="fixed bottom-6 right-6 z-[200] flex flex-col gap-2 pointer-events-none">
         {toasts.map(t => {
           const Icon = ICONS[t.type];
           return (

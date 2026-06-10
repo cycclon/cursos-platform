@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Send, Bug, Lightbulb, HelpCircle, ImagePlus, Loader2,
-  ChevronDown, ChevronUp, MapPin, Monitor, Trash2, CheckCircle2,
+  ChevronDown, ChevronUp, MapPin, Monitor, Trash2, CheckCircle2, AlertCircle,
 } from 'lucide-react';
 import { bugReportsService } from '@/services/bugReports';
 import { useToast } from '@/context/ToastContext';
@@ -16,7 +16,9 @@ const TYPE_OPTIONS: { value: BugReportType; icon: typeof Bug; hint: string }[] =
   { value: 'question', icon: HelpCircle, hint: 'Una duda o consulta' },
 ];
 
-const MAX_IMAGE_MB = 5;
+// High-DPI full-page screenshots routinely exceed 5MB — keep this generous.
+// Must stay ≤ the server-side check in backend/src/routes/bugReports.ts.
+const MAX_IMAGE_MB = 10;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export default function BugReportDrawer({
@@ -39,6 +41,8 @@ export default function BugReportDrawer({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
   const [uploadPct, setUploadPct] = useState<number | null>(null);
+  // Shown inline under the picker: toasts alone proved easy to miss here.
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Esc to close + lock background scroll.
@@ -61,12 +65,13 @@ export default function BugReportDrawer({
   }, [previewUrl]);
 
   const handleFile = async (file: File) => {
+    setUploadError(null);
     if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.error('Solo se permiten imágenes JPG, PNG o WEBP.');
+      setUploadError('Solo se permiten imágenes JPG, PNG o WEBP.');
       return;
     }
     if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
-      toast.error(`La imagen supera el máximo de ${MAX_IMAGE_MB}MB.`);
+      setUploadError(`La imagen supera el máximo de ${MAX_IMAGE_MB}MB.`);
       return;
     }
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -83,7 +88,10 @@ export default function BugReportDrawer({
         if (cur) URL.revokeObjectURL(cur);
         return null;
       });
-      toast.error(err instanceof ApiError ? err.message : 'No se pudo subir la imagen.');
+      const msg = err instanceof ApiError ? err.message : 'No se pudo subir la imagen.';
+      // Keep the HTTP status visible: it tells apart "route missing" (404),
+      // "proxy rejected the size" (413) and "storage failed" (502).
+      setUploadError(err instanceof ApiError && err.status > 0 ? `${msg} (HTTP ${err.status})` : msg);
     }
   };
 
@@ -92,6 +100,7 @@ export default function BugReportDrawer({
     setPreviewUrl(null);
     setAttachmentUrl(null);
     setUploadPct(null);
+    setUploadError(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -271,6 +280,12 @@ export default function BugReportDrawer({
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
+            )}
+            {uploadError && (
+              <p className="flex items-start gap-1.5 text-[11px] text-error mt-1.5" role="alert">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px" />
+                {uploadError}
+              </p>
             )}
             <input
               ref={fileInputRef}
