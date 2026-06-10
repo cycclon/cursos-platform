@@ -4,13 +4,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, Edit3, Eye, Trash2, CalendarDays, X, Check, DollarSign, MoreVertical,
   Video, MapPin, Users, Clock, ArrowLeft, BookOpen, CheckCircle2, Lock,
-  GraduationCap, FileWarning, Search,
+  GraduationCap, FileWarning, Search, Bell, Mail,
 } from 'lucide-react';
 import { coursesService } from '@/services/courses';
 import { workshopsService } from '@/services/workshops';
 import { workshopRegistrationsService } from '@/services/workshopRegistrations';
 import { ProgressBar, Avatar, StatCard } from '@/components/progress/visuals';
 import { toneFor } from '@/components/progress/tone';
+import ReminderComposeModal from '@/components/reminders/ReminderComposeModal';
+import WorkshopBulkReminderModal from '@/components/reminders/WorkshopBulkReminderModal';
 import { formatPrice } from '@/utils/format';
 import { generateSlug } from '@/utils/slug';
 import { AVAILABILITY_OPTIONS } from '@/utils/availability';
@@ -77,6 +79,12 @@ function formatScheduledAt(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
   return new Intl.DateTimeFormat('es-AR', { dateStyle: 'long', timeStyle: 'short' }).format(d);
+}
+
+function fmtShortDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export default function WorkshopManager() {
@@ -835,10 +843,12 @@ function RosterEntryCard({
   entry,
   index,
   onMark,
+  onCompose,
 }: {
   entry: WorkshopRosterEntry;
   index: number;
   onMark: (id: string, status: 'attended' | 'no_show') => void;
+  onCompose: (student: { id: string; name: string }) => void;
 }) {
   // Blockers first (incomplete, lowest progress on top), completed sink to the bottom.
   const prereqs = [...entry.prereqProgress].sort(
@@ -846,6 +856,11 @@ function RosterEntryCard({
   );
   const total = prereqs.length;
   const done = prereqs.filter(p => p.completed).length;
+  // Only worth a reminder when a correlativa is actually in progress (the email is
+  // about resuming pending modules — exam-only blockers have nothing to remind).
+  const canRemind = !entry.eligible && prereqs.some(p => p.enrolled && p.progress < 100);
+  const showFooter = canRemind || entry.attendanceStatus === 'registered'
+    || (entry.staleDays != null && !entry.eligible) || !!entry.lastReminderAt;
 
   return (
     <div
@@ -885,23 +900,52 @@ function RosterEntryCard({
         )}
       </div>
 
-      {/* Attendance actions */}
-      {entry.attendanceStatus === 'registered' && (
-        <div className="flex gap-2 mt-4 justify-end">
-          <button
-            onClick={() => onMark(entry.id, 'attended')}
-            className="inline-flex items-center gap-1.5 btn-secondary btn-sm rounded-lg"
-          >
-            <Check className="w-3 h-3" />
-            Marcar asistió
-          </button>
-          <button
-            onClick={() => onMark(entry.id, 'no_show')}
-            className="inline-flex items-center gap-1.5 btn-ghost btn-sm rounded-lg"
-          >
-            <X className="w-3 h-3" />
-            Ausente
-          </button>
+      {/* Footer: activity context + actions */}
+      {showFooter && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-light">
+            {entry.staleDays != null && !entry.eligible && (
+              <span className={`inline-flex items-center gap-1 tabular-nums ${entry.staleDays >= 14 ? 'text-gold-dark font-medium' : ''}`}>
+                <Clock className="w-3.5 h-3.5" />
+                {entry.staleDays === 0 ? 'Con actividad hoy' : `Sin actividad hace ${entry.staleDays} d`}
+              </span>
+            )}
+            {entry.lastReminderAt && (
+              <span className="inline-flex items-center gap-1">
+                <Mail className="w-3.5 h-3.5" />
+                Recordado el {fmtShortDate(entry.lastReminderAt)}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2 shrink-0">
+            {canRemind && (
+              <button
+                onClick={() => onCompose({ id: entry.studentId, name: entry.student?.name ?? 'Alumno' })}
+                className="inline-flex items-center gap-1.5 btn-ghost btn-sm rounded-lg"
+              >
+                <Mail className="w-3 h-3" />
+                Recordatorio
+              </button>
+            )}
+            {entry.attendanceStatus === 'registered' && (
+              <>
+                <button
+                  onClick={() => onMark(entry.id, 'attended')}
+                  className="inline-flex items-center gap-1.5 btn-secondary btn-sm rounded-lg"
+                >
+                  <Check className="w-3 h-3" />
+                  Marcar asistió
+                </button>
+                <button
+                  onClick={() => onMark(entry.id, 'no_show')}
+                  className="inline-flex items-center gap-1.5 btn-ghost btn-sm rounded-lg"
+                >
+                  <X className="w-3 h-3" />
+                  Ausente
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -913,11 +957,16 @@ function RosterView({ workshop, onBack }: { workshop: Workshop; onBack: () => vo
   const toast = useToast();
   const [search, setSearch] = useState('');
   const [onlyPending, setOnlyPending] = useState(false);
+  const [composeStudent, setComposeStudent] = useState<{ id: string; name: string } | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const { data: roster = [], isLoading } = useQuery({
     queryKey: ['workshop-roster', workshop.id],
     queryFn: () => workshopRegistrationsService.getRoster(workshop.id),
   });
+
+  const invalidateRoster = () =>
+    queryClient.invalidateQueries({ queryKey: ['workshop-roster', workshop.id] });
 
   const handleMark = async (id: string, status: 'attended' | 'no_show') => {
     try {
@@ -959,6 +1008,15 @@ function RosterView({ workshop, onBack }: { workshop: Workshop; onBack: () => vo
             {formatScheduledAt(workshop.scheduledAt)}
           </p>
         </div>
+        {workshop.prerequisiteCourseIds.length > 0 && pendingCount > 0 && (
+          <button
+            onClick={() => setBulkOpen(true)}
+            className="inline-flex items-center gap-2 btn-primary btn-md rounded-xl shrink-0"
+          >
+            <Bell className="w-4 h-4" />
+            Enviar recordatorios
+          </button>
+        )}
       </div>
 
       {!isLoading && active.length > 0 && (
@@ -1015,9 +1073,32 @@ function RosterView({ workshop, onBack }: { workshop: Workshop; onBack: () => vo
       ) : (
         <div className="space-y-3">
           {filtered.map((entry, i) => (
-            <RosterEntryCard key={entry.id} entry={entry} index={i} onMark={handleMark} />
+            <RosterEntryCard
+              key={entry.id}
+              entry={entry}
+              index={i}
+              onMark={handleMark}
+              onCompose={setComposeStudent}
+            />
           ))}
         </div>
+      )}
+
+      {composeStudent && (
+        <ReminderComposeModal
+          studentId={composeStudent.id}
+          studentName={composeStudent.name}
+          onClose={() => { setComposeStudent(null); invalidateRoster(); }}
+        />
+      )}
+
+      {bulkOpen && (
+        <WorkshopBulkReminderModal
+          workshop={workshop}
+          studentIds={active.map(r => r.studentId)}
+          onClose={() => setBulkOpen(false)}
+          onSent={invalidateRoster}
+        />
       )}
     </div>
   );

@@ -303,6 +303,10 @@ export interface WorkshopRosterEntry extends WorkshopRegistration {
   eligible: boolean;
   missing: { id: string; title: string; slug: string }[];
   prereqProgress: PrereqProgress[];
+  /** Days since the student last progressed in a correlativa; null if not enrolled in any. */
+  staleDays: number | null;
+  /** ISO timestamp of the most recent reminder sent to this student, or null. */
+  lastReminderAt: string | null;
 }
 
 // ── Student progress tracking (teacher / superuser analytics) ──────────────
@@ -447,6 +451,10 @@ export interface ReminderDraft {
 export interface MassReminderParams {
   staleDays: number;
   courseIds?: string[];
+  /** Restrict the candidate pool to specific students (e.g. a workshop roster). */
+  studentIds?: string[];
+  /** 'courses' measures inactivity only on `courseIds`; 'global' (default) across all courses. */
+  staleScope?: 'global' | 'courses';
   cooldownDays: number;
 }
 
