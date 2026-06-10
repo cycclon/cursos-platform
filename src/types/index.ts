@@ -467,3 +467,118 @@ export interface MassReminderResult {
   truncated: boolean;
   failures: { studentId: string; email: string; error: string }[];
 }
+
+// ── Bug reports / feedback ─────────────────────────────────────────────────
+
+export type BugReportType = 'bug' | 'suggestion' | 'question';
+export type BugReportStatus = 'new' | 'in_progress' | 'resolved' | 'closed' | 'wont_fix';
+export type BugReportEmailKind = 'ack' | 'status_change' | 'custom';
+export type BugReportEmailStatus = 'sent' | 'logged' | 'failed';
+
+export interface BugReportContextInput {
+  url: string;
+  path: string;
+  pageLabel?: string;
+  pageHeading?: string;
+  userAgent?: string;
+  viewport?: string;
+  screen?: string;
+  language?: string;
+  referrer?: string;
+  consoleLogs?: string;
+}
+
+export interface BugReportCreateInput {
+  type: BugReportType;
+  message: string;
+  attachmentUrl?: string;
+  context: BugReportContextInput;
+  website?: string; // honeypot
+}
+
+export interface BugReportCreated {
+  id: string | null;
+  ticketId: string;
+  status: BugReportStatus;
+}
+
+export interface BugReportListItem {
+  id: string;
+  ticketId: string;
+  type: BugReportType;
+  status: BugReportStatus;
+  message: string;
+  reporter: { name: string; email: string };
+  pageLabel: string;
+  hasAttachment: boolean;
+  notifyOnStatusChange: boolean;
+  emailCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BugReportStatusEvent {
+  status: BugReportStatus;
+  note: string | null;
+  changedByName: string | null;
+  at: string;
+}
+
+export interface BugReportEmail {
+  kind: BugReportEmailKind;
+  subject: string;
+  body: string;
+  to: string;
+  status: BugReportEmailStatus;
+  error: string | null;
+  at: string;
+}
+
+export interface BugReportDetail {
+  id: string;
+  ticketId: string;
+  type: BugReportType;
+  status: BugReportStatus;
+  message: string;
+  reporter: { userId: string | null; name: string; email: string; role: string };
+  pageLabel: string;
+  hasAttachment: boolean;
+  notifyOnStatusChange: boolean;
+  emailCount: number;
+  attachmentUrl: string | null;
+  internalNotes: string;
+  context: {
+    url: string;
+    path: string;
+    pageLabel: string | null;
+    pageHeading: string | null;
+    userAgent: string | null;
+    viewport: string | null;
+    screen: string | null;
+    language: string | null;
+    referrer: string | null;
+    consoleLogs: string | null;
+  };
+  statusHistory: BugReportStatusEvent[];
+  emails: BugReportEmail[];
+  createdAt: string;
+  updatedAt: string;
+  emailResult?: 'sent' | 'logged' | 'failed' | 'skipped';
+}
+
+export interface BugReportListResponse {
+  items: BugReportListItem[];
+  total: number;
+  page: number;
+  limit: number;
+  counts: Record<string, number>;
+}
+
+export interface BugReportStats {
+  new: number;
+  in_progress: number;
+  resolved: number;
+  closed: number;
+  wont_fix: number;
+  total: number;
+}

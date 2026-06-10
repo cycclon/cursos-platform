@@ -5,9 +5,10 @@ import Header from './Header';
 import { coursesService } from '@/services/courses';
 import { bundlesService } from '@/services/bundles';
 import { workshopsService } from '@/services/workshops';
+import { bugReportsService } from '@/services/bugReports';
 import {
   LayoutDashboard, BookOpen, BarChart3, TrendingUp, Bell,
-  ChevronRight, Package, HelpCircle, MessageSquare, UserCircle, CalendarDays, Receipt,
+  ChevronRight, Package, HelpCircle, MessageSquare, UserCircle, CalendarDays, Receipt, Bug,
 } from 'lucide-react';
 
 export default function DashboardLayout() {
@@ -30,6 +31,14 @@ export default function DashboardLayout() {
     queryKey: ['workshops'],
     queryFn: () => workshopsService.getWorkshops(),
   });
+
+  const { data: bugStats } = useQuery({
+    queryKey: ['bug-report-stats'],
+    queryFn: bugReportsService.stats,
+    enabled: role === 'superuser',
+    staleTime: 1000 * 60,
+  });
+  const newReportsCount = bugStats?.new ?? 0;
 
   const hasMultipleCourses = courses.length >= 2;
   const hasCombos = bundles.length > 0;
@@ -56,6 +65,7 @@ export default function DashboardLayout() {
     { to: '/superusuario/progreso', label: 'Progreso', icon: TrendingUp },
     { to: '/superusuario/recordatorios', label: 'Recordatorios', icon: Bell },
     { to: '/superusuario/ventas', label: 'Detalle de Ventas', icon: Receipt },
+    { to: '/superusuario/reportes', label: 'Reportes', icon: Bug, badge: newReportsCount },
   ];
 
   const sidebarLinks = role === 'teacher'
@@ -96,7 +106,13 @@ export default function DashboardLayout() {
                   >
                     <Icon className="w-4.5 h-4.5" />
                     {link.label}
-                    {isActive(link.to) && <ChevronRight className="w-4 h-4 ml-auto text-chocolate-light" />}
+                    {(link as { badge?: number }).badge ? (
+                      <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-error text-cream text-[10px] font-bold">
+                        {(link as { badge?: number }).badge}
+                      </span>
+                    ) : isActive(link.to) ? (
+                      <ChevronRight className="w-4 h-4 ml-auto text-chocolate-light" />
+                    ) : null}
                   </Link>
                 );
               })}

@@ -46,6 +46,10 @@ import ProfileSettings from './pages/teacher/ProfileSettings'
 
 // Admin pages
 import SuperuserPanel from './pages/admin/SuperuserPanel'
+import BugReports from './pages/admin/BugReports'
+
+// Global widgets
+import BugReportWidget from './components/feedback/BugReportWidget'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -136,8 +140,12 @@ export default function App() {
           <Route path="/superusuario/estudiantes/:studentId" element={<StudentDetail />} />
           <Route path="/superusuario/recordatorios" element={<MassReminders />} />
           <Route path="/superusuario/ventas" element={<SalesDetail />} />
+          <Route path="/superusuario/reportes" element={<BugReports />} />
         </Route>
       </Routes>
+
+      {/* Floating "report a problem" launcher — shows for signed-in users only */}
+      <BugReportWidget />
     </>
   )
 }
