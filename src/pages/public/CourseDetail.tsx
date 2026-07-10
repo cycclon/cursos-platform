@@ -1,17 +1,18 @@
 import { useParams, Link } from 'react-router-dom';
 import {
   Clock, Users, BookOpen, Award, ShieldCheck, Lock, Play, Star,
-  FileText, ChevronDown, ChevronUp, ArrowRight, CheckCircle2, Loader2, Send,
+  FileText, ChevronDown, ChevronUp, ArrowRight, CheckCircle2, Loader2, Send, Link2, Layers,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { coursesService } from '@/services/courses';
 import { enrollmentsService } from '@/services/enrollments';
 import { paymentsService } from '@/services/payments';
 import CourseImage from '@/components/ui/CourseImage';
 import ModuleVideoPreview from '@/components/ui/ModuleVideoPreview';
 import { reviewsService } from '@/services/reviews';
-import { formatPrice } from '@/utils/format';
+import { formatPrice, formatDate } from '@/utils/format';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import StarRating from '@/components/ui/StarRating';
@@ -19,6 +20,7 @@ import StarRating from '@/components/ui/StarRating';
 export default function CourseDetail() {
   const { slug } = useParams<{ slug: string }>();
   const { user, role, isAuthenticated } = useAuth();
+  const { t } = useTranslation();
   const toast = useToast();
   const queryClient = useQueryClient();
 
@@ -39,12 +41,12 @@ export default function CourseDetail() {
 
   const handleEnroll = async () => {
     if (!isAuthenticated) {
-      toast.error('Iniciá sesión para inscribirte');
+      toast.error(t('courseDetail.signInToEnroll'));
       return;
     }
 
     if (course!.availability !== 'Disponible') {
-      toast.error('Este curso no está disponible para inscripción');
+      toast.error(t('courseDetail.notAvailable'));
       return;
     }
 
@@ -56,14 +58,14 @@ export default function CourseDetail() {
       try {
         await enrollmentsService.createEnrollment(course!.id);
         queryClient.invalidateQueries({ queryKey: ['enrollments'] });
-        toast.success('¡Inscripción exitosa! Ya podés acceder al curso.');
+        toast.success(t('courseDetail.enrollSuccess'));
       } catch (err: unknown) {
         const error = err as { status?: number };
         if (error.status === 409) {
           queryClient.invalidateQueries({ queryKey: ['enrollments'] });
-          toast.success('Ya estás inscrito en este curso.');
+          toast.success(t('courseDetail.alreadyEnrolled'));
         } else {
-          toast.error('Error al procesar la inscripción');
+          toast.error(t('courseDetail.enrollError'));
         }
       } finally {
         setEnrolling(false);
@@ -79,9 +81,9 @@ export default function CourseDetail() {
     } catch (err: unknown) {
       const error = err as { status?: number; message?: string };
       if (error.status === 503 && error.message === 'mercadopago_not_connected') {
-        toast.error('La docente está actualizando su forma de cobro. Volvé a intentar en unos minutos.');
+        toast.error(t('courseDetail.paymentUpdating'));
       } else {
-        toast.error('Error al iniciar el pago. Intentá de nuevo.');
+        toast.error(t('courseDetail.paymentError'));
       }
       setEnrolling(false);
     }
@@ -110,11 +112,12 @@ export default function CourseDetail() {
   });
   const [submittingReview, setSubmittingReview] = useState(false);
 
+  // Review category keys are contract field names; only labels are localized.
   const categoryLabels: Record<string, string> = {
-    contenido: 'Contenido',
-    claridad: 'Claridad',
-    material: 'Material',
-    valorPrecio: 'Valor/Precio',
+    contenido: t('courseDetail.categories.contenido'),
+    claridad: t('courseDetail.categories.claridad'),
+    material: t('courseDetail.categories.material'),
+    valorPrecio: t('courseDetail.categories.valorPrecio'),
   };
 
   const allCategoriesRated = reviewForm.contenido > 0 && reviewForm.claridad > 0
@@ -136,13 +139,13 @@ export default function CourseDetail() {
       });
       queryClient.invalidateQueries({ queryKey: ['reviews', course!.id] });
       queryClient.invalidateQueries({ queryKey: ['courses', slug] });
-      toast.success('¡Gracias por tu opinión!');
+      toast.success(t('courseDetail.reviewThanks'));
     } catch (err: unknown) {
       const error = err as { status?: number };
       if (error.status === 409) {
-        toast.error('Ya dejaste una opinión para este curso.');
+        toast.error(t('courseDetail.alreadyReviewed'));
       } else {
-        toast.error('Error al enviar la opinión.');
+        toast.error(t('courseDetail.reviewError'));
       }
     } finally {
       setSubmittingReview(false);
@@ -167,8 +170,8 @@ export default function CourseDetail() {
   if (!course) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-        <h1 className="font-display text-2xl text-ink">Curso no encontrado</h1>
-        <Link to="/cursos" className="text-chocolate mt-4 inline-block">Volver al catálogo</Link>
+        <h1 className="font-display text-2xl text-ink">{t('courseDetail.notFound')}</h1>
+        <Link to="/cursos" className="text-chocolate mt-4 inline-block">{t('courseDetail.backToCatalog')}</Link>
       </div>
     );
   }
@@ -195,14 +198,14 @@ export default function CourseDetail() {
 
               <div className="flex flex-wrap items-center gap-4 text-sm text-ink-light mb-6">
                 <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" />{course.duration}</span>
-                <span className="flex items-center gap-1.5"><BookOpen className="w-4 h-4" />{course.modules?.length ?? 0} módulos</span>
-                <span className="flex items-center gap-1.5"><Users className="w-4 h-4" />{course.studentCount} estudiantes</span>
-                {course.hasCertificate && <span className="flex items-center gap-1.5"><Award className="w-4 h-4 text-gold" />Con certificado</span>}
+                <span className="flex items-center gap-1.5"><BookOpen className="w-4 h-4" />{course.modules?.length ?? 0} {t('courseDetail.modules')}</span>
+                <span className="flex items-center gap-1.5"><Users className="w-4 h-4" />{course.studentCount} {t('courseDetail.students')}</span>
+                {course.hasCertificate && <span className="flex items-center gap-1.5"><Award className="w-4 h-4 text-gold" />{t('courseDetail.withCertificate')}</span>}
               </div>
 
               <div className="flex items-center gap-3">
                 <StarRating rating={course.rating} showValue />
-                <span className="text-sm text-ink-light">({course.reviewCount} opiniones)</span>
+                <span className="text-sm text-ink-light">({course.reviewCount} {t('courseDetail.reviewsCount')})</span>
               </div>
             </div>
 
@@ -233,14 +236,14 @@ export default function CourseDetail() {
                   to={`/aprender/${course.id}`}
                   className="block text-center btn-primary btn-lg btn-full rounded-xl"
                 >
-                  Ir al curso
+                  {t('courseDetail.goToCourse')}
                 </Link>
               ) : role === 'teacher' && course.teacherId === user?.id ? (
                 <Link
                   to={`/admin/cursos`}
                   className="block text-center btn-secondary btn-lg btn-full rounded-xl"
                 >
-                  Editar curso
+                  {t('courseDetail.editCourse')}
                 </Link>
               ) : course.availability !== 'Disponible' ? (
                 <button
@@ -248,10 +251,10 @@ export default function CourseDetail() {
                   className="btn-primary btn-lg btn-full rounded-xl opacity-60 cursor-not-allowed"
                 >
                   {course.availability === 'Próximamente'
-                    ? 'Próximamente'
+                    ? t('courseDetail.comingSoon')
                     : course.availability === 'Cerrado'
-                      ? 'Inscripciones cerradas'
-                      : 'No disponible'}
+                      ? t('courseDetail.enrollmentsClosed')
+                      : t('courseDetail.unavailable')}
                 </button>
               ) : (
                 <button
@@ -259,7 +262,7 @@ export default function CourseDetail() {
                   disabled={enrolling}
                   className="btn-primary btn-lg btn-full rounded-xl disabled:opacity-60"
                 >
-                  {enrolling ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Inscribirme ahora'}
+                  {enrolling ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : t('courseDetail.enrollNow')}
                 </button>
               )}
 
@@ -271,7 +274,7 @@ export default function CourseDetail() {
               )}
 
               <p className="text-xs text-ink-light mt-3 text-center">
-                {course.availability}
+                {t(`common.availability.${course.availability}`, course.availability)}
               </p>
             </div>
           </div>
@@ -283,7 +286,7 @@ export default function CourseDetail() {
           <div className="lg:col-span-2 space-y-12">
             {/* Description */}
             <div>
-              <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">Descripción</h2>
+              <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">{t('courseDetail.description')}</h2>
               <div className="prose prose-sm max-w-none text-ink-light leading-relaxed mt-6 whitespace-pre-line">
                 {course.description}
               </div>
@@ -297,7 +300,7 @@ export default function CourseDetail() {
             {/* Prerequisites */}
             {course.prerequisites.length > 0 && (
               <div>
-                <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">Requisitos previos</h2>
+                <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">{t('courseDetail.prerequisites')}</h2>
                 <ul className="mt-6 space-y-2">
                   {course.prerequisites.map((p, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm text-ink-light">
@@ -311,14 +314,15 @@ export default function CourseDetail() {
 
             {/* Modules */}
             <div>
-              <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">Contenido del curso</h2>
+              <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">{t('courseDetail.courseContent')}</h2>
               <p className="text-sm text-ink-light mb-6 mt-6">
-                {course.modules?.length ?? 0} módulos · {course.duration} de contenido
+                {t('courseDetail.contentMeta', { count: course.modules?.length ?? 0, duration: course.duration })}
               </p>
               <div className="space-y-3">
                 {course.modules.map(mod => {
                   const isOpen = expandedModule === mod.id;
                   const videoCount = (mod.videos?.length ?? 0) > 0 ? mod.videos.length : (mod.videoCount ?? 0);
+                  const flashcardCount = (mod.flashcards?.length ?? 0) > 0 ? mod.flashcards!.length : (mod.flashcardCount ?? 0);
                   return (
                     <div
                       key={mod.id}
@@ -340,8 +344,10 @@ export default function CourseDetail() {
                             <span className="text-sm font-semibold text-ink block">{mod.title}</span>
                             <span className="text-xs text-ink-light">
                               {mod.videoDuration && `${mod.videoDuration} · `}
-                              {videoCount} video{videoCount !== 1 ? 's' : ''} · {mod.materials.length} material{mod.materials.length !== 1 ? 'es' : ''}
-                              {mod.isFree && <span className="text-success font-semibold ml-2">Gratis</span>}
+                              {t('courseDetail.videoCount', { count: videoCount })} · {t('courseDetail.materialCount', { count: mod.materials.length })}
+                              {(mod.links ?? []).length > 0 && ` · ${t('courseDetail.linkCount', { count: mod.links!.length })}`}
+                              {flashcardCount > 0 && ` · ${t('courseDetail.cardCount', { count: flashcardCount })}`}
+                              {mod.isFree && <span className="text-success font-semibold ml-2">{t('courseDetail.free')}</span>}
                             </span>
                           </div>
                         </div>
@@ -376,6 +382,46 @@ export default function CourseDetail() {
                               ))}
                             </div>
                           )}
+                          {(mod.links ?? []).length > 0 && (
+                            <div className="space-y-1.5 mt-1.5">
+                              {(mod.links ?? []).map((link, li) => {
+                                const inner = (
+                                  <span className="flex items-center gap-2">
+                                    <Link2 className="w-3.5 h-3.5 text-chocolate-light shrink-0" />
+                                    <span className={`text-xs ${link.url ? 'text-chocolate' : 'text-ink'}`}>{link.title}</span>
+                                  </span>
+                                );
+                                return link.url ? (
+                                  <a
+                                    key={link.id ?? li}
+                                    href={link.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title={link.description || link.url}
+                                    className="block py-1.5 px-3 rounded-lg bg-cream-dark/50 hover:bg-cream-dark transition-colors hover:underline"
+                                  >
+                                    {inner}
+                                  </a>
+                                ) : (
+                                  <div
+                                    key={link.id ?? li}
+                                    title={link.description || undefined}
+                                    className="py-1.5 px-3 rounded-lg bg-cream-dark/50"
+                                  >
+                                    {inner}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                          {flashcardCount > 0 && (
+                            <div className="mt-1.5 py-1.5 px-3 rounded-lg bg-cream-dark/50 flex items-center gap-2">
+                              <Layers className="w-3.5 h-3.5 text-chocolate-light shrink-0" />
+                              <span className="text-xs text-ink">
+                                {t('courseDetail.studyCards', { count: flashcardCount })}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -387,23 +433,25 @@ export default function CourseDetail() {
             {/* Test info */}
             {course.hasTest && course.testConfig && (
               <div className="bg-chocolate-50 rounded-xl p-6 border border-chocolate-100/30">
-                <h3 className="font-display text-lg font-bold text-ink mb-3">Examen de certificación</h3>
+                <h3 className="font-display text-lg font-bold text-ink mb-3">{t('courseDetail.examTitle')}</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                   <div>
-                    <p className="text-2xl font-bold text-chocolate">{course.testConfig.totalQuestions}</p>
-                    <p className="text-xs text-ink-light">Preguntas</p>
+                    <p className="text-2xl font-bold text-chocolate">{course.questionCount ?? course.testConfig.totalQuestions}</p>
+                    <p className="text-xs text-ink-light">{t('courseDetail.questions')}</p>
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-chocolate">{course.testConfig.timeLimit} min</p>
-                    <p className="text-xs text-ink-light">Tiempo límite</p>
+                    <p className="text-2xl font-bold text-chocolate">
+                      {course.testConfig.timed === false ? t('courseDetail.noTimeLimit') : `${course.testConfig.timeLimit} ${t('courseDetail.minutes')}`}
+                    </p>
+                    <p className="text-xs text-ink-light">{t('courseDetail.timeLimitLabel')}</p>
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-chocolate">{course.testConfig.maxRetries}</p>
-                    <p className="text-xs text-ink-light">Intentos</p>
+                    <p className="text-xs text-ink-light">{t('courseDetail.attempts')}</p>
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-chocolate">{course.testConfig.passingScore}%</p>
-                    <p className="text-xs text-ink-light">Para aprobar</p>
+                    <p className="text-xs text-ink-light">{t('courseDetail.toPass')}</p>
                   </div>
                 </div>
               </div>
@@ -411,14 +459,14 @@ export default function CourseDetail() {
 
             {/* Reviews */}
             <div>
-              <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">Opiniones</h2>
+              <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">{t('courseDetail.reviews')}</h2>
 
               {/* Student review form */}
               {canReview && (
                 <div className="mt-6 mb-6 bg-parchment rounded-xl p-6 border-2 border-gold/30 shadow-warm">
                   <div className="flex items-center gap-2 mb-5">
                     <Star className="w-5 h-5 text-gold fill-gold" />
-                    <h3 className="font-display text-lg font-bold text-ink">Dejá tu opinión</h3>
+                    <h3 className="font-display text-lg font-bold text-ink">{t('courseDetail.leaveReview')}</h3>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
@@ -438,7 +486,7 @@ export default function CourseDetail() {
                   <textarea
                     value={reviewForm.comment}
                     onChange={e => setReviewForm(prev => ({ ...prev, comment: e.target.value }))}
-                    placeholder="Contanos tu experiencia con el curso..."
+                    placeholder={t('courseDetail.reviewPlaceholder')}
                     rows={4}
                     disabled={submittingReview}
                     className="w-full px-4 py-3 rounded-lg border border-chocolate-100/30 bg-cream text-sm text-ink placeholder:text-ink-light/50 focus:outline-none focus:ring-2 focus:ring-gold/30 focus:border-gold/50 resize-none disabled:opacity-50 transition-all"
@@ -447,8 +495,8 @@ export default function CourseDetail() {
                   <div className="flex items-center justify-between mt-4">
                     <p className="text-xs text-ink-light">
                       {allCategoriesRated
-                        ? `Valoración general: ${((reviewForm.contenido + reviewForm.claridad + reviewForm.material + reviewForm.valorPrecio) / 4).toFixed(1)} / 5`
-                        : 'Calificá todas las categorías para continuar'}
+                        ? t('courseDetail.overallRating', { value: ((reviewForm.contenido + reviewForm.claridad + reviewForm.material + reviewForm.valorPrecio) / 4).toFixed(1) })
+                        : t('courseDetail.rateAllCategories')}
                     </p>
                     <button
                       onClick={handleSubmitReview}
@@ -460,7 +508,7 @@ export default function CourseDetail() {
                       ) : (
                         <Send className="w-3.5 h-3.5" />
                       )}
-                      {submittingReview ? 'Enviando...' : 'Enviar opinión'}
+                      {submittingReview ? t('courseDetail.sending') : t('courseDetail.submitReview')}
                     </button>
                   </div>
                 </div>
@@ -468,7 +516,7 @@ export default function CourseDetail() {
 
               <div className="space-y-4 mt-6">
                 {reviews.length === 0 && !canReview && (
-                  <p className="text-sm text-ink-light py-4">Aún no hay opiniones para este curso.</p>
+                  <p className="text-sm text-ink-light py-4">{t('courseDetail.noReviews')}</p>
                 )}
                 {reviews.map(review => (
                   <div key={review.id} className="bg-parchment rounded-xl p-5 border border-chocolate-100/20">
@@ -479,7 +527,7 @@ export default function CourseDetail() {
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-ink">{review.studentName}</p>
-                          <p className="text-xs text-ink-light">{new Date(review.date).toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                          <p className="text-xs text-ink-light">{formatDate(review.date)}</p>
                         </div>
                       </div>
                       <StarRating rating={review.rating} size="sm" />
@@ -489,7 +537,7 @@ export default function CourseDetail() {
 
                     {review.teacherReply && (
                       <div className="mt-3 ml-4 pl-4 border-l-2 border-gold/30">
-                        <p className="text-xs font-semibold text-chocolate mb-1">Respuesta de la Dra. Flamini</p>
+                        <p className="text-xs font-semibold text-chocolate mb-1">{t('courseDetail.teacherReply')}</p>
                         <p className="text-sm text-ink-light">{review.teacherReply}</p>
                       </div>
                     )}
@@ -503,7 +551,7 @@ export default function CourseDetail() {
           <div className="hidden lg:block">
             <div className="sticky top-24">
               <div className="bg-parchment rounded-xl p-6 border border-chocolate-100/20 shadow-warm">
-                <h3 className="font-display text-lg font-bold text-ink mb-4">Contenidos</h3>
+                <h3 className="font-display text-lg font-bold text-ink mb-4">{t('courseDetail.toc')}</h3>
                 <ol className="space-y-2">
                   {course.tableOfContents.map((item, i) => (
                     <li key={i} className="flex items-start gap-2.5 text-sm text-ink-light">
@@ -522,7 +570,7 @@ export default function CourseDetail() {
                   className="inline-flex items-center gap-1 text-sm text-chocolate font-medium hover:text-chocolate-dark transition-colors"
                 >
                   <ArrowRight className="w-3.5 h-3.5 rotate-180" />
-                  Volver al catálogo
+                  {t('courseDetail.backToCatalog')}
                 </Link>
               </div>
             </div>
@@ -535,6 +583,7 @@ export default function CourseDetail() {
 
 function CorrelativeCourses({ prerequisiteCourseIds }: { prerequisiteCourseIds: string[] }) {
   const { isAuthenticated } = useAuth();
+  const { t } = useTranslation();
   const { data: courses = [] } = useQuery({
     queryKey: ['courses'],
     queryFn: coursesService.getCourses,
@@ -562,10 +611,9 @@ function CorrelativeCourses({ prerequisiteCourseIds }: { prerequisiteCourseIds: 
 
   return (
     <div>
-      <h2 className="font-display text-2xl font-bold text-ink mb-2 gold-underline">Cursos correlativos</h2>
+      <h2 className="font-display text-2xl font-bold text-ink mb-2 gold-underline">{t('courseDetail.correlatives')}</h2>
       <p className="text-sm text-ink-light mt-4 mb-4">
-        Para rendir el examen de este curso necesitás haber completado primero estos cursos.
-        No bloquean la compra ni la visualización del contenido.
+        {t('courseDetail.correlativesHint')}
       </p>
       <ul className="space-y-2">
         {prereqs.map(c => {
@@ -585,7 +633,7 @@ function CorrelativeCourses({ prerequisiteCourseIds }: { prerequisiteCourseIds: 
                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
                   completed ? 'text-success bg-success/10' : 'text-ink-light bg-cream-dark'
                 }`}>
-                  {completed ? 'Completado' : 'Pendiente'}
+                  {completed ? t('courseDetail.completed') : t('courseDetail.pendingLabel')}
                 </span>
               )}
             </li>

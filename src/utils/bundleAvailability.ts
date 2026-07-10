@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import type { Course, Workshop } from '@/types';
 
 export type UnavailableItem = {
@@ -24,12 +25,14 @@ export function bundleAvailability(courses: Course[], workshops: Workshop[] = []
   return { kind: 'unavailable', items };
 }
 
-export function bundleAvailabilityReason(status: BundleAvailability): string | null {
+export function bundleAvailabilityReason(status: BundleAvailability, t: TFunction): string | null {
   if (status.kind === 'available') return null;
   if (status.items.length === 1) {
     const item = status.items[0];
-    const label = item.kind === 'course' ? 'curso' : 'taller';
-    return `El ${label} "${item.title}" no está actualmente disponible.`;
+    return t('bundleAvailability.unavailableSingle', {
+      kind: t(`bundleAvailability.${item.kind}`),
+      title: item.title,
+    });
   }
-  return 'Algunos contenidos incluidos en este combo no están actualmente disponibles.';
+  return t('bundleAvailability.unavailableMany');
 }

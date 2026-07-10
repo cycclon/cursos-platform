@@ -1,17 +1,23 @@
+import { useTranslation } from 'react-i18next';
+import LegalNotice from '@/components/legal/LegalNotice';
+
 export default function Privacy() {
+  const { t } = useTranslation();
   return (
     <div>
       <section className="bg-hero-gradient diagonal-accent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-          <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">Legal</span>
+          <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">{t('legal.badge')}</span>
           <h1 className="font-display text-3xl md:text-4xl font-bold text-ink mt-2 mb-3">
-            Política de Privacidad
+            {t('legal.privacyTitle')}
           </h1>
           <p className="text-ink-light max-w-xl">
             Última actualización: febrero 2026
           </p>
         </div>
       </section>
+
+      <LegalNotice />
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="prose prose-sm max-w-none text-ink-light leading-relaxed space-y-8">

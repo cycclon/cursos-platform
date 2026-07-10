@@ -4,6 +4,7 @@ import {
   BookOpen, Clock, Award, ArrowRight, Play, MessageSquare,
   CalendarDays, Video, MapPin, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { enrollmentsService } from '@/services/enrollments';
 import { certificatesService } from '@/services/certificates';
 import { coursesService } from '@/services/courses';
@@ -13,10 +14,12 @@ import { workshopRegistrationsService } from '@/services/workshopRegistrations';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import CourseImage from '@/components/ui/CourseImage';
+import { formatDate, formatDateTime } from '@/utils/format';
 import type { Workshop } from '@/types';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -68,13 +71,13 @@ export default function StudentDashboard() {
   );
 
   const handleCancelWorkshop = async (registrationId: string) => {
-    if (!window.confirm('¿Cancelar tu inscripción a este taller?')) return;
+    if (!window.confirm(t('dashboard.cancelWorkshopConfirm'))) return;
     try {
       await workshopRegistrationsService.cancel(registrationId);
       queryClient.invalidateQueries({ queryKey: ['workshop-registrations'] });
-      toast.success('Inscripción cancelada.');
+      toast.success(t('dashboard.cancelledOk'));
     } catch {
-      toast.error('No se pudo cancelar la inscripción.');
+      toast.error(t('dashboard.cancelError'));
     }
   };
 
@@ -106,18 +109,18 @@ export default function StudentDashboard() {
     <div>
       <div className="mb-8">
         <h1 className="font-display text-2xl md:text-3xl font-bold text-ink">
-          Hola, {user?.name?.split(' ')[0]} 👋
+          {t('dashboard.greeting', { name: user?.name?.split(' ')[0] })}
         </h1>
-        <p className="text-ink-light mt-1">Acá podés ver tus cursos, progreso y certificados.</p>
+        <p className="text-ink-light mt-1">{t('dashboard.subtitle')}</p>
       </div>
 
       {/* Quick stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
         {[
-          { icon: BookOpen, label: 'Cursos activos', value: enrollments.length, color: 'text-chocolate bg-chocolate-50' },
-          { icon: Clock, label: 'En progreso', value: enrollments.filter(e => e.progress < 100).length, color: 'text-gold bg-gold/10' },
-          { icon: CalendarDays, label: 'Talleres próximos', value: upcomingWorkshops.length, color: 'text-chocolate bg-chocolate-50' },
-          { icon: Award, label: 'Certificados', value: certificates.length, color: 'text-success bg-success-light' },
+          { icon: BookOpen, label: t('dashboard.activeCourses'), value: enrollments.length, color: 'text-chocolate bg-chocolate-50' },
+          { icon: Clock, label: t('dashboard.inProgress'), value: enrollments.filter(e => e.progress < 100).length, color: 'text-gold bg-gold/10' },
+          { icon: CalendarDays, label: t('dashboard.upcomingWorkshops'), value: upcomingWorkshops.length, color: 'text-chocolate bg-chocolate-50' },
+          { icon: Award, label: t('dashboard.certificates'), value: certificates.length, color: 'text-success bg-success-light' },
         ].map((stat, i) => {
           const Icon = stat.icon;
           return (
@@ -135,7 +138,7 @@ export default function StudentDashboard() {
       </div>
 
       {/* Enrolled courses */}
-      <h2 className="font-display text-xl font-bold text-ink mb-4 gold-underline">Mis Cursos</h2>
+      <h2 className="font-display text-xl font-bold text-ink mb-4 gold-underline">{t('dashboard.myCourses')}</h2>
       <div className="mt-6 space-y-4">
         {enrollments.map(enrollment => {
           const course = getCourse(enrollment.courseId);
@@ -157,7 +160,7 @@ export default function StudentDashboard() {
                     </div>
                     {enrollment.progress === 100 && (
                       <span className="shrink-0 text-xs font-bold text-success bg-success-light px-2.5 py-1 rounded-full">
-                        Completado
+                        {t('dashboard.completed')}
                       </span>
                     )}
                   </div>
@@ -165,7 +168,7 @@ export default function StudentDashboard() {
                   {/* Progress bar */}
                   <div className="mt-3">
                     <div className="flex justify-between text-xs text-ink-light mb-1.5">
-                      <span>Progreso</span>
+                      <span>{t('dashboard.progress')}</span>
                       <span className="font-semibold">{enrollment.progress}%</span>
                     </div>
                     <div className="w-full h-2 rounded-full bg-chocolate-100/30">
@@ -187,7 +190,7 @@ export default function StudentDashboard() {
                       className="inline-flex items-center gap-1.5 btn-primary btn-sm rounded-lg"
                     >
                       <Play className="w-3.5 h-3.5" />
-                      {enrollment.progress === 100 ? 'Repasar' : 'Continuar'}
+                      {enrollment.progress === 100 ? t('dashboard.review') : t('dashboard.continue')}
                     </Link>
                     {enrollment.testPassed && enrollment.certificateId && (
                       <Link
@@ -195,7 +198,7 @@ export default function StudentDashboard() {
                         className="inline-flex items-center gap-1.5 text-sm text-gold font-medium hover:text-chocolate transition-colors"
                       >
                         <Award className="w-3.5 h-3.5" />
-                        Ver certificado
+                        {t('dashboard.viewCertificate')}
                       </Link>
                     )}
                     {enrollment.progress === 100 && course.hasTest && !enrollment.testPassed && (
@@ -203,7 +206,7 @@ export default function StudentDashboard() {
                         to={`/examen/${course.id}`}
                         className="inline-flex items-center gap-1.5 text-sm text-chocolate font-medium hover:text-chocolate-dark transition-colors"
                       >
-                        Rendir examen
+                        {t('dashboard.takeExam')}
                         <ArrowRight className="w-3.5 h-3.5" />
                       </Link>
                     )}
@@ -213,7 +216,7 @@ export default function StudentDashboard() {
                         className="inline-flex items-center gap-1.5 text-sm text-gold font-medium hover:text-chocolate transition-colors"
                       >
                         <MessageSquare className="w-3.5 h-3.5" />
-                        Dejar opinión
+                        {t('dashboard.leaveReview')}
                       </Link>
                     )}
                   </div>
@@ -227,7 +230,7 @@ export default function StudentDashboard() {
       {/* Workshops */}
       {(upcomingWorkshops.length > 0 || pastWorkshops.length > 0) && (
         <>
-          <h2 className="font-display text-xl font-bold text-ink mb-4 gold-underline mt-10">Mis Talleres</h2>
+          <h2 className="font-display text-xl font-bold text-ink mb-4 gold-underline mt-10">{t('dashboard.myWorkshops')}</h2>
           {upcomingWorkshops.length > 0 && (
             <div className="space-y-4 mt-6">
               {upcomingWorkshops.map(reg => reg.workshop && (
@@ -242,7 +245,7 @@ export default function StudentDashboard() {
           )}
           {pastWorkshops.length > 0 && (
             <div className="mt-6">
-              <h3 className="text-sm font-semibold text-ink-light mb-3">Anteriores</h3>
+              <h3 className="text-sm font-semibold text-ink-light mb-3">{t('dashboard.past')}</h3>
               <div className="space-y-3">
                 {pastWorkshops.map(reg => reg.workshop && (
                   <div
@@ -253,9 +256,7 @@ export default function StudentDashboard() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-ink truncate">{reg.workshop.title}</p>
                       <p className="text-xs text-ink-light">
-                        {new Date(reg.workshop.scheduledAt).toLocaleDateString('es-AR', {
-                          year: 'numeric', month: 'long', day: 'numeric',
-                        })}
+                        {formatDate(reg.workshop.scheduledAt)}
                       </p>
                     </div>
                     <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
@@ -265,7 +266,7 @@ export default function StudentDashboard() {
                           ? 'text-error bg-error-light'
                           : 'text-ink-light bg-cream-dark'
                     }`}>
-                      {reg.attendanceStatus}
+                      {t(`dashboard.attendance.${reg.attendanceStatus}`, reg.attendanceStatus)}
                     </span>
                   </div>
                 ))}
@@ -278,7 +279,7 @@ export default function StudentDashboard() {
       {/* Certificates */}
       {certificates.length > 0 && (
         <>
-          <h2 className="font-display text-xl font-bold text-ink mb-4 gold-underline mt-10">Certificados</h2>
+          <h2 className="font-display text-xl font-bold text-ink mb-4 gold-underline mt-10">{t('dashboard.certificates')}</h2>
           <div className="mt-6 grid sm:grid-cols-2 gap-4">
             {certificates.map(cert => (
               <Link
@@ -293,8 +294,8 @@ export default function StudentDashboard() {
                   <div>
                     <h3 className="font-display font-bold text-ink group-hover:text-chocolate transition-colors">{cert.courseTitle}</h3>
                     <p className="text-xs text-ink-light mt-0.5">
-                      Emitido el {new Date(cert.issuedAt).toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' })}
-                      {cert.score && ` · Nota: ${cert.score}%`}
+                      {t('dashboard.issuedOn', { date: formatDate(cert.issuedAt) })}
+                      {cert.score && ` · ${t('dashboard.scoreLabel', { score: cert.score })}`}
                     </p>
                   </div>
                 </div>
@@ -306,13 +307,13 @@ export default function StudentDashboard() {
 
       {/* Browse more courses */}
       <div className="mt-12 bg-chocolate-50 rounded-xl p-6 border border-chocolate-100/30 text-center">
-        <p className="font-display text-lg font-semibold text-ink mb-2">¿Querés seguir aprendiendo?</p>
-        <p className="text-sm text-ink-light mb-4">Explorá nuestro catálogo completo de cursos.</p>
+        <p className="font-display text-lg font-semibold text-ink mb-2">{t('dashboard.keepLearning')}</p>
+        <p className="text-sm text-ink-light mb-4">{t('dashboard.exploreCatalog')}</p>
         <Link
           to="/cursos"
           className="inline-flex items-center gap-2 btn-primary btn-md rounded-xl"
         >
-          Ver catálogo
+          {t('dashboard.viewCatalog')}
           <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
@@ -329,6 +330,7 @@ function UpcomingWorkshopCard({
   workshop: Workshop;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const { data: access } = useQuery({
     queryKey: ['workshop-access', workshop.id],
     queryFn: () => workshopRegistrationsService.getAccess(workshop.id),
@@ -339,12 +341,12 @@ function UpcomingWorkshopCard({
   const endTime = scheduledDate.getTime() + workshop.durationMinutes * 60_000;
   let countdown = '';
   if (Date.now() >= scheduledDate.getTime() && Date.now() <= endTime) {
-    countdown = 'En curso';
+    countdown = t('dashboard.inCourse');
   } else if (diffMs > 0) {
     const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    if (days === 0) countdown = 'Hoy';
-    else if (days === 1) countdown = 'Mañana';
-    else countdown = `En ${days} días`;
+    if (days === 0) countdown = t('dashboard.today');
+    else if (days === 1) countdown = t('dashboard.tomorrow');
+    else countdown = t('dashboard.inDays', { count: days });
   }
 
   return (
@@ -359,7 +361,7 @@ function UpcomingWorkshopCard({
           <div className="flex flex-wrap items-center gap-2 mb-1">
             <span className="text-[10px] font-bold text-gold uppercase tracking-wider flex items-center gap-1">
               {workshop.modality === 'online' ? <Video className="w-3 h-3" /> : <MapPin className="w-3 h-3" />}
-              Taller {workshop.modality}
+              {t('dashboard.workshopLabel', { modality: t(`common.modality.${workshop.modality}`, workshop.modality) })}
             </span>
             {countdown && (
               <span className="text-[10px] font-bold text-chocolate bg-chocolate-50 px-2 py-0.5 rounded-full uppercase">
@@ -370,7 +372,7 @@ function UpcomingWorkshopCard({
           <h3 className="font-display text-base font-bold text-ink">{workshop.title}</h3>
           <p className="text-xs text-ink-light mt-1 flex items-center gap-1">
             <CalendarDays className="w-3 h-3" />
-            {new Intl.DateTimeFormat('es-AR', { dateStyle: 'long', timeStyle: 'short' }).format(scheduledDate)}
+            {formatDateTime(scheduledDate)}
           </p>
 
           {access?.eligible ? (
@@ -383,13 +385,13 @@ function UpcomingWorkshopCard({
                   className="inline-flex items-center gap-1.5 btn-primary btn-sm rounded-lg"
                 >
                   <Video className="w-3.5 h-3.5" />
-                  Ir a la sala
+                  {t('dashboard.goToRoom')}
                 </a>
               ) : (
                 <details className="text-xs">
                   <summary className="inline-flex items-center gap-1.5 btn-secondary btn-sm rounded-lg cursor-pointer list-none">
                     <MapPin className="w-3.5 h-3.5" />
-                    Ver dirección
+                    {t('dashboard.viewAddress')}
                   </summary>
                   <p className="mt-2 p-3 bg-cream/60 rounded-lg text-sm text-ink whitespace-pre-line">
                     {access.location}
@@ -400,7 +402,7 @@ function UpcomingWorkshopCard({
                 onClick={onCancel}
                 className="inline-flex items-center gap-1.5 btn-ghost btn-sm rounded-lg"
               >
-                Cancelar inscripción
+                {t('dashboard.cancelRegistration')}
               </button>
               <span className="sr-only">{registrationId}</span>
             </div>
@@ -408,7 +410,7 @@ function UpcomingWorkshopCard({
             <div className="mt-3 flex items-start gap-2 p-3 rounded-lg bg-gold/10 border border-gold/20">
               <AlertTriangle className="w-4 h-4 text-gold shrink-0 mt-0.5" />
               <div className="text-xs text-ink-light flex-1 min-w-0">
-                <p className="font-semibold text-ink mb-1">Necesitás completar antes:</p>
+                <p className="font-semibold text-ink mb-1">{t('dashboard.completeFirst')}</p>
                 <ul className="space-y-0.5">
                   {access.missing.map(m => (
                     <li key={m.id} className="flex items-center gap-1.5">
@@ -423,7 +425,7 @@ function UpcomingWorkshopCard({
                   onClick={onCancel}
                   className="mt-3 underline text-ink-light hover:text-error"
                 >
-                  Cancelar inscripción
+                  {t('dashboard.cancelRegistration')}
                 </button>
               </div>
             </div>

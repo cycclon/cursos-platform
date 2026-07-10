@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { teacherService } from '@/services/teacher';
 import { CheckCircle2, BookOpen, Scale, GraduationCap } from 'lucide-react';
 
 export default function About() {
+  const { t } = useTranslation();
   const { data: teacher, isLoading } = useQuery({
     queryKey: ['teacher'],
     queryFn: teacherService.getTeacher,
@@ -30,9 +32,9 @@ export default function About() {
       {/* Hero */}
       <section className="bg-hero-gradient diagonal-accent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-          <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">Conocé a tu docente</span>
+          <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">{t('about.badge')}</span>
           <h1 className="font-display text-3xl md:text-4xl font-bold text-ink mt-2">
-            Sobre Mí
+            {t('about.title')}
           </h1>
         </div>
       </section>
@@ -58,9 +60,9 @@ export default function About() {
               {/* Quick stats */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { icon: Scale, label: 'Años en la justicia', value: '+15' },
-                  { icon: BookOpen, label: 'Publicaciones', value: '+30' },
-                  { icon: GraduationCap, label: 'Alumnos formados', value: '+800' },
+                  { icon: Scale, label: t('about.yearsInJustice'), value: '+15' },
+                  { icon: BookOpen, label: t('about.publications'), value: '+30' },
+                  { icon: GraduationCap, label: t('about.studentsTrained'), value: '+800' },
                 ].map((stat, i) => {
                   const Icon = stat.icon;
                   return (
@@ -78,7 +80,7 @@ export default function About() {
           {/* Bio side */}
           <div className="lg:col-span-3 space-y-8">
             <div>
-              <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">Mi Trayectoria</h2>
+              <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">{t('about.myCareer')}</h2>
               <div className="mt-6 space-y-4">
                 {teacher.bio.split('\n\n').map((paragraph, i) => (
                   <p key={i} className="text-ink-light leading-relaxed">{paragraph}</p>
@@ -87,7 +89,7 @@ export default function About() {
             </div>
 
             <div>
-              <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">Credenciales</h2>
+              <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">{t('about.credentials')}</h2>
               <ul className="mt-6 space-y-3">
                 {teacher.credentials.map((cred, i) => (
                   <li key={i} className="flex items-start gap-3">
@@ -101,7 +103,7 @@ export default function About() {
             {/* Welcome video */}
             {teacher.videoUrl && (
               <div>
-                <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">Mensaje de bienvenida</h2>
+                <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">{t('about.welcomeVideo')}</h2>
                 <div className="mt-6 aspect-video rounded-xl overflow-hidden border border-chocolate-100/20">
                   <video
                     src={teacher.videoUrl}
@@ -116,7 +118,7 @@ export default function About() {
             {/* Philosophy */}
             <div className="bg-chocolate-50 rounded-2xl p-8 border border-chocolate-100/30">
               <p className="font-display text-xl italic text-ink leading-relaxed text-balance">
-                &ldquo;La verdadera formación jurídica no se limita a memorizar normas, sino a comprender los principios que les dan sentido y saber aplicarlos con criterio en cada caso concreto.&rdquo;
+                {t('about.quote')}
               </p>
               <div className="mt-4 flex items-center gap-3">
                 <div className="w-0.5 h-8 bg-gold" />

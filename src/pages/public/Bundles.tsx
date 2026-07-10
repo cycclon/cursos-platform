@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { BookOpen, ArrowRight, Package } from 'lucide-react';
 import { bundlesService } from '@/services/bundles';
 import { coursesService } from '@/services/courses';
@@ -20,6 +21,7 @@ function getBundleWorkshops(bundle: Bundle, workshops: Workshop[]): Workshop[] {
 }
 
 export default function Bundles() {
+  const { t } = useTranslation();
   const { data: bundles = [], isLoading: loadingBundles } = useQuery({
     queryKey: ['bundles'],
     queryFn: bundlesService.getBundles,
@@ -42,12 +44,12 @@ export default function Bundles() {
       {/* Hero Section */}
       <section className="bg-hero-gradient diagonal-accent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-          <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">Combos Especiales</span>
+          <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">{t('bundles.badge')}</span>
           <h1 className="font-display text-3xl md:text-4xl font-bold text-ink mt-2 mb-3">
-            Nuestros Combos
+            {t('bundles.title')}
           </h1>
           <p className="text-ink-light max-w-xl">
-            Aprovechá nuestras combinaciones exclusivas de cursos. Aprendé más ahorrando con packs diseñados para profundizar tu conocimiento.
+            {t('bundles.subtitle')}
           </p>
         </div>
       </section>
@@ -124,7 +126,7 @@ export default function Bundles() {
 
                   {/* Content */}
                   <div className="p-5">
-                    <span className="text-xs font-semibold text-gold uppercase tracking-wider">Combo · {bundleCourses.length} cursos</span>
+                    <span className="text-xs font-semibold text-gold uppercase tracking-wider">{t('bundles.comboMeta', { count: bundleCourses.length })}</span>
                     <h3 className="font-display text-lg font-bold text-ink mt-1.5 mb-2 group-hover:text-chocolate transition-colors">
                       {bundle.title}
                     </h3>
@@ -134,11 +136,11 @@ export default function Bundles() {
                     <div className="flex items-center gap-4 text-xs text-ink-light mb-4">
                       <span className="flex items-center gap-1">
                         <Package className="w-3.5 h-3.5" />
-                        {bundleCourses.length} cursos
+                        {t('bundles.coursesCount', { count: bundleCourses.length })}
                       </span>
                       <span className="flex items-center gap-1">
                         <BookOpen className="w-3.5 h-3.5" />
-                        {totalModules} módulos
+                        {t('bundles.modulesCount', { count: totalModules })}
                       </span>
                     </div>
 
@@ -147,10 +149,10 @@ export default function Bundles() {
                       <div>
                         <span className="text-xs text-ink-light line-through">{formatPrice(bundle.originalPrice)}</span>
                         <span className="block text-lg font-bold text-chocolate">{formatPrice(bundle.price)}</span>
-                        <span className="text-xs text-success font-semibold">Ahorrás {formatPrice(savings)}</span>
+                        <span className="text-xs text-success font-semibold">{t('bundles.youSave', { amount: formatPrice(savings) })}</span>
                       </div>
                       <span className="flex items-center gap-1 text-sm font-medium text-ink-light group-hover:text-chocolate transition-colors">
-                        Ver combo
+                        {t('bundles.viewBundle')}
                         <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                       </span>
                     </div>

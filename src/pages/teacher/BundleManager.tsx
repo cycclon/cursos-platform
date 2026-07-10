@@ -6,13 +6,18 @@ import {
   CalendarDays, Loader2, Image as ImageIcon,
 } from 'lucide-react';
 import CourseImage from '@/components/ui/CourseImage';
+import EnglishSection from '@/components/teacher/EnglishSection';
+import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 import { coursesService } from '@/services/courses';
 import { bundlesService } from '@/services/bundles';
 import { workshopsService } from '@/services/workshops';
 import { uploadsService } from '@/services/uploads';
 import { formatPrice } from '@/utils/format';
+import { pruneEn } from '@/utils/translations';
 import { useToast } from '@/context/ToastContext';
 import type { Bundle, Course, Workshop } from '@/types';
+
+type BundleEn = NonNullable<NonNullable<Bundle['translations']>['en']>;
 
 function generateSlug(title: string): string {
   return title
@@ -41,6 +46,7 @@ const emptyForm = {
   workshopIds: [] as string[],
   price: 0,
   featured: false,
+  translations: { en: {} as BundleEn },
 };
 
 export default function BundleManager() {
@@ -101,6 +107,7 @@ export default function BundleManager() {
       workshopIds: bundle.workshopIds ?? [],
       price: bundle.price,
       featured: bundle.featured,
+      translations: { en: { ...(bundle.translations?.en ?? {}) } },
     });
     setIsEditing(true);
   };
@@ -159,9 +166,43 @@ export default function BundleManager() {
     ? Math.round((1 - formData.price / originalPrice) * 100)
     : 0;
 
+  const { translating, runTranslate } = useAutoTranslate();
+
+  const setBundleEn = (field: keyof BundleEn, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      translations: { en: { ...(prev.translations.en ?? {}), [field]: value } },
+    }));
+  };
+
+  const handleAutoTranslate = async () => {
+    const draft: BundleEn = { ...(formData.translations.en ?? {}) };
+    const slots: { text: string; apply: (v: string) => void }[] = [];
+    if (formData.title.trim() && !(draft.title ?? '').trim()) {
+      slots.push({ text: formData.title, apply: v => { draft.title = v; } });
+    }
+    if (formData.description.trim() && !(draft.description ?? '').trim()) {
+      slots.push({ text: formData.description, apply: v => { draft.description = v; } });
+    }
+    if (slots.length === 0) {
+      toast.success('No hay campos en inglés pendientes de completar.');
+      return;
+    }
+    const translations = await runTranslate(slots.map(s => s.text), 'Combo de cursos de litigación con descuento');
+    if (!translations) return;
+    slots.forEach((s, i) => s.apply(translations[i]));
+    setFormData(prev => ({ ...prev, translations: { en: draft } }));
+    toast.success('Traducción lista. Revisá antes de guardar.');
+  };
+
   const handleSave = async () => {
     const discountLabel = discountPercentage > 0 ? `${discountPercentage}% OFF` : '';
-    const payload = { ...formData, originalPrice, discountLabel };
+    const payload = {
+      ...formData,
+      originalPrice,
+      discountLabel,
+      translations: { en: pruneEn(formData.translations.en) },
+    };
 
     try {
       if (editingBundle) {
@@ -255,6 +296,31 @@ export default function BundleManager() {
               className="w-full px-4 py-2.5 rounded-xl border border-chocolate-100/40 bg-parchment text-sm text-ink placeholder:text-ink-light/60 focus:outline-none focus:border-chocolate/40 focus:ring-2 focus:ring-chocolate/10 transition-all resize-none"
             />
           </div>
+
+          {/* Traducción al inglés */}
+          <EnglishSection onAutoTranslate={handleAutoTranslate} translating={translating} defaultOpen={!!formData.translations.en?.title}>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-ink mb-1.5">Título (EN)</label>
+                <input
+                  type="text"
+                  value={formData.translations.en?.title ?? ''}
+                  onChange={e => setBundleEn('title', e.target.value)}
+                  placeholder={formData.title || 'Bundle title'}
+                  className="w-full px-4 py-2.5 rounded-xl border border-chocolate-100/40 bg-parchment text-sm text-ink placeholder:text-ink-light/60 focus:outline-none focus:border-chocolate/40 focus:ring-2 focus:ring-chocolate/10 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-ink mb-1.5">Descripción (EN)</label>
+                <textarea
+                  value={formData.translations.en?.description ?? ''}
+                  onChange={e => setBundleEn('description', e.target.value)}
+                  rows={3}
+                  className="w-full px-4 py-2.5 rounded-xl border border-chocolate-100/40 bg-parchment text-sm text-ink placeholder:text-ink-light/60 focus:outline-none focus:border-chocolate/40 focus:ring-2 focus:ring-chocolate/10 transition-all resize-none"
+                />
+              </div>
+            </div>
+          </EnglishSection>
 
           {/* Image */}
           <div>

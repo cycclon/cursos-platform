@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import {
   X, Send, Bug, Lightbulb, HelpCircle, ImagePlus, Loader2,
   ChevronDown, ChevronUp, MapPin, Monitor, Trash2, CheckCircle2, AlertCircle,
@@ -7,13 +8,12 @@ import {
 import { bugReportsService } from '@/services/bugReports';
 import { useToast } from '@/context/ToastContext';
 import { ApiError } from '@/services/api';
-import { BUG_TYPE_LABEL } from '@/utils/bugReports';
 import type { BugReportContextInput, BugReportType } from '@/types';
 
-const TYPE_OPTIONS: { value: BugReportType; icon: typeof Bug; hint: string }[] = [
-  { value: 'bug', icon: Bug, hint: 'Algo no funciona' },
-  { value: 'suggestion', icon: Lightbulb, hint: 'Una idea de mejora' },
-  { value: 'question', icon: HelpCircle, hint: 'Una duda o consulta' },
+const TYPE_OPTIONS: { value: BugReportType; icon: typeof Bug }[] = [
+  { value: 'bug', icon: Bug },
+  { value: 'suggestion', icon: Lightbulb },
+  { value: 'question', icon: HelpCircle },
 ];
 
 // High-DPI full-page screenshots routinely exceed 5MB — keep this generous.
@@ -28,6 +28,7 @@ export default function BugReportDrawer({
   context: BugReportContextInput;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const toast = useToast();
 
   const [type, setType] = useState<BugReportType>('bug');
@@ -67,11 +68,11 @@ export default function BugReportDrawer({
   const handleFile = async (file: File) => {
     setUploadError(null);
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setUploadError('Solo se permiten imágenes JPG, PNG o WEBP.');
+      setUploadError(t('bugReport.onlyImages'));
       return;
     }
     if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
-      setUploadError(`La imagen supera el máximo de ${MAX_IMAGE_MB}MB.`);
+      setUploadError(t('bugReport.imageTooBig', { max: MAX_IMAGE_MB }));
       return;
     }
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -88,7 +89,7 @@ export default function BugReportDrawer({
         if (cur) URL.revokeObjectURL(cur);
         return null;
       });
-      const msg = err instanceof ApiError ? err.message : 'No se pudo subir la imagen.';
+      const msg = err instanceof ApiError ? err.message : t('bugReport.uploadFailed');
       // Keep the HTTP status visible: it tells apart "route missing" (404),
       // "proxy rejected the size" (413) and "storage failed" (502).
       setUploadError(err instanceof ApiError && err.status > 0 ? `${msg} (HTTP ${err.status})` : msg);
@@ -121,10 +122,10 @@ export default function BugReportDrawer({
         context: { ...context, pageLabel: pageLabel.trim() || context.pageLabel },
         website,
       });
-      toast.success(`¡Gracias! Recibimos tu reporte ${res.ticketId}. Te escribimos a tu email.`);
+      toast.success(t('bugReport.thanks', { ticketId: res.ticketId }));
       onClose();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'No se pudo enviar el reporte.');
+      toast.error(err instanceof ApiError ? err.message : t('bugReport.sendFailed'));
       setSubmitting(false);
     }
   };
@@ -134,7 +135,7 @@ export default function BugReportDrawer({
       className="fixed inset-0 z-[100] flex items-end justify-center sm:items-stretch sm:justify-end"
       role="dialog"
       aria-modal="true"
-      aria-label="Reportar un problema"
+      aria-label={t('bugReport.open')}
     >
       {/* Backdrop — deliberately no blur and barely dimmed: the drawer sits
           beside the page so the user can keep looking at what they're reporting. */}
@@ -156,14 +157,14 @@ export default function BugReportDrawer({
               <Bug className="w-4.5 h-4.5" />
             </div>
             <div className="min-w-0">
-              <h2 className="font-display text-lg font-bold text-ink leading-tight">Reportar un problema</h2>
-              <p className="text-xs text-ink-light truncate">Tu mensaje nos ayuda a mejorar la plataforma.</p>
+              <h2 className="font-display text-lg font-bold text-ink leading-tight">{t('bugReport.open')}</h2>
+              <p className="text-xs text-ink-light truncate">{t('bugReport.subtitle')}</p>
             </div>
           </div>
           <button
             onClick={() => !submitting && onClose()}
             className="p-1.5 rounded-lg text-ink-light hover:text-chocolate hover:bg-chocolate-50 transition-colors shrink-0"
-            aria-label="Cerrar"
+            aria-label={t('common.close')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -173,7 +174,7 @@ export default function BugReportDrawer({
         <div className="px-5 py-5 overflow-y-auto flex-1 space-y-5">
           {/* Type selector */}
           <div>
-            <label className="block text-xs font-semibold text-ink-light mb-2">¿Qué querés contarnos?</label>
+            <label className="block text-xs font-semibold text-ink-light mb-2">{t('bugReport.whatToTell')}</label>
             <div className="grid grid-cols-3 gap-2">
               {TYPE_OPTIONS.map((opt) => {
                 const Icon = opt.icon;
@@ -190,8 +191,8 @@ export default function BugReportDrawer({
                     }`}
                   >
                     <Icon className="w-5 h-5" />
-                    <span className="text-xs font-semibold leading-tight">{BUG_TYPE_LABEL[opt.value]}</span>
-                    <span className="text-[10px] leading-tight opacity-70 hidden sm:block">{opt.hint}</span>
+                    <span className="text-xs font-semibold leading-tight">{t(`bugReport.types.${opt.value}`)}</span>
+                    <span className="text-[10px] leading-tight opacity-70 hidden sm:block">{t(`bugReport.hints.${opt.value}`)}</span>
                   </button>
                 );
               })}
@@ -201,7 +202,7 @@ export default function BugReportDrawer({
           {/* Message */}
           <div>
             <label htmlFor="br-message" className="block text-xs font-semibold text-ink-light mb-1.5">
-              Contanos qué pasó
+              {t('bugReport.tellUs')}
             </label>
             <textarea
               id="br-message"
@@ -209,23 +210,17 @@ export default function BugReportDrawer({
               onChange={(e) => setMessage(e.target.value)}
               rows={5}
               autoFocus
-              placeholder={
-                type === 'bug'
-                  ? 'Ej: Al hacer clic en "Reproducir", el video no carga y aparece una pantalla en negro…'
-                  : type === 'suggestion'
-                    ? 'Ej: Estaría bueno poder descargar los materiales en un solo archivo…'
-                    : 'Ej: ¿Dónde puedo ver mi certificado una vez aprobado el examen?'
-              }
+              placeholder={t(`bugReport.placeholders.${type}`)}
               className="w-full px-3.5 py-3 text-sm leading-relaxed rounded-xl bg-cream border border-chocolate-100/40 text-ink placeholder:text-ink-light/50 focus:outline-none focus:border-chocolate-light focus:ring-2 focus:ring-chocolate-100/40 transition-shadow resize-y"
             />
-            <p className="text-[11px] text-ink-light/70 mt-1">Mínimo 5 caracteres. Cuanto más detalle, mejor.</p>
+            <p className="text-[11px] text-ink-light/70 mt-1">{t('bugReport.minChars')}</p>
           </div>
 
           {/* Page (prefilled, editable) */}
           <div>
             <label htmlFor="br-page" className="flex items-center gap-1.5 text-xs font-semibold text-ink-light mb-1.5">
               <MapPin className="w-3.5 h-3.5" />
-              ¿En qué página/sección?
+              {t('bugReport.whichPage')}
             </label>
             <input
               id="br-page"
@@ -235,7 +230,7 @@ export default function BugReportDrawer({
             />
             {context.pageHeading && (
               <p className="text-[11px] text-ink-light/70 mt-1 truncate">
-                Detectamos: <span className="font-medium text-ink-light">{context.pageHeading}</span>
+                {t('bugReport.detected')} <span className="font-medium text-ink-light">{context.pageHeading}</span>
               </p>
             )}
           </div>
@@ -244,7 +239,7 @@ export default function BugReportDrawer({
           <div>
             <label className="flex items-center gap-1.5 text-xs font-semibold text-ink-light mb-1.5">
               <ImagePlus className="w-3.5 h-3.5" />
-              Captura de pantalla <span className="font-normal opacity-70">(opcional)</span>
+              {t('bugReport.screenshot')} <span className="font-normal opacity-70">{t('bugReport.optional')}</span>
             </label>
 
             {!previewUrl ? (
@@ -254,8 +249,8 @@ export default function BugReportDrawer({
                 className="w-full flex flex-col items-center justify-center gap-1.5 px-4 py-5 rounded-xl border border-dashed border-chocolate-100/60 bg-cream/60 text-ink-light hover:border-chocolate-light hover:bg-chocolate-50/40 transition-colors"
               >
                 <ImagePlus className="w-5 h-5" />
-                <span className="text-xs font-medium">Adjuntar una imagen</span>
-                <span className="text-[10px] opacity-70">JPG, PNG o WEBP · hasta {MAX_IMAGE_MB}MB</span>
+                <span className="text-xs font-medium">{t('bugReport.attachImage')}</span>
+                <span className="text-[10px] opacity-70">{t('bugReport.imageFormats', { max: MAX_IMAGE_MB })}</span>
               </button>
             ) : (
               <div className="relative rounded-xl overflow-hidden border border-chocolate-100/40 bg-cream">
@@ -275,7 +270,7 @@ export default function BugReportDrawer({
                   type="button"
                   onClick={clearImage}
                   className="absolute top-2 right-2 p-1.5 rounded-lg bg-ink/60 text-cream hover:bg-error transition-colors"
-                  aria-label="Quitar imagen"
+                  aria-label={t('bugReport.removeImage')}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -308,23 +303,23 @@ export default function BugReportDrawer({
             >
               <span className="flex items-center gap-1.5">
                 <Monitor className="w-3.5 h-3.5" />
-                Detalles técnicos que adjuntamos
+                {t('bugReport.techDetails')}
               </span>
               {techOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
             {techOpen && (
               <div className="border-t border-chocolate-100/30">
                 <dl className="px-3.5 pb-3 pt-2 space-y-1.5 text-[11px] text-ink-light">
-                  <ContextRow label="Dirección" value={context.url} mono />
-                  <ContextRow label="Navegador" value={context.userAgent} mono />
-                  <ContextRow label="Ventana" value={context.viewport} />
-                  <ContextRow label="Pantalla" value={context.screen} />
-                  <ContextRow label="Idioma" value={context.language} />
+                  <ContextRow label={t('bugReport.techAddress')} value={context.url} mono />
+                  <ContextRow label={t('bugReport.techBrowser')} value={context.userAgent} mono />
+                  <ContextRow label={t('bugReport.techWindow')} value={context.viewport} />
+                  <ContextRow label={t('bugReport.techScreen')} value={context.screen} />
+                  <ContextRow label={t('bugReport.techLanguage')} value={context.language} />
                 </dl>
                 {consoleLineCount > 0 && (
                   <div className="px-3.5 pb-3">
                     <p className="text-[11px] font-medium text-ink-light/80 mb-1">
-                      Registros de consola ({consoleLineCount}) — se adjuntan para ayudar a diagnosticar:
+                      {t('bugReport.consoleLogs', { count: consoleLineCount })}
                     </p>
                     <pre className="max-h-32 overflow-auto rounded-lg bg-ink/90 text-cream/90 text-[10px] leading-relaxed p-2.5 whitespace-pre-wrap break-words font-mono">
                       {context.consoleLogs}
@@ -334,7 +329,7 @@ export default function BugReportDrawer({
               </div>
             )}
             <p className="px-3.5 pb-3 text-[10px] text-ink-light/60">
-              Incluimos esta información para reproducir el problema. No accedemos a nada que no esté en esta página.
+              {t('bugReport.privacyNote')}
             </p>
           </div>
 
@@ -353,7 +348,7 @@ export default function BugReportDrawer({
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-chocolate-100/30 bg-cream/60 shrink-0">
           <button onClick={() => !submitting && onClose()} className="btn-ghost btn-md" disabled={submitting}>
-            Cancelar
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSubmit}
@@ -361,7 +356,7 @@ export default function BugReportDrawer({
             className="btn-primary btn-md disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            {submitting ? 'Enviando…' : 'Enviar reporte'}
+            {submitting ? t('bugReport.sending') : t('bugReport.send')}
           </button>
         </div>
       </div>

@@ -1,21 +1,35 @@
 import { recordClientLog } from '@/utils/consoleCapture';
+import { getCurrentLang } from '@/i18n/lang';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
+// Content GETs are language-resolved server-side; sending the active language
+// on every GET keeps all reads consistent without touching each service.
+function withLang(path: string): string {
+  const sep = path.includes('?') ? '&' : '?';
+  return `${path}${sep}lang=${getCurrentLang()}`;
+}
+
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  // Machine-readable code from the backend (e.g. 'INVALID_CREDENTIALS'),
+  // so the bilingual UI can localize known errors; the message itself is
+  // the backend's Spanish copy.
+  code?: string;
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
   }
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const method = options?.method ?? 'GET';
+  const requestPath = method === 'GET' ? withLang(path) : path;
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${path}`, {
+    res = await fetch(`${API_BASE}${requestPath}`, {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
@@ -36,7 +50,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     if (!(res.status === 401 && path === '/auth/me')) {
       recordClientLog('network', `HTTP ${res.status} ${method} ${path} — ${message}`);
     }
-    throw new ApiError(res.status, message);
+    throw new ApiError(res.status, message, typeof body.code === 'string' ? body.code : undefined);
   }
 
   if (res.status === 204) return undefined as T;

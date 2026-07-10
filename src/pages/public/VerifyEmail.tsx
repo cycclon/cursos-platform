@@ -1,33 +1,19 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
 import { CheckCircle2, AlertCircle, Clock, BookOpen } from 'lucide-react';
 
 type Status = 'success' | 'invalid' | 'expired' | 'taken';
 
-const COPY: Record<Status, { title: string; body: string; tone: 'success' | 'error' | 'warning' }> = {
-  success: {
-    title: '¡Email confirmado!',
-    body: 'Tu cuenta está activa. Ya podés iniciar sesión con tu email y contraseña.',
-    tone: 'success',
-  },
-  expired: {
-    title: 'El enlace caducó',
-    body: 'El enlace de verificación expiró. Volvé a registrarte para recibir uno nuevo.',
-    tone: 'warning',
-  },
-  invalid: {
-    title: 'Enlace inválido',
-    body: 'No pudimos validar este enlace. Es posible que ya lo hayas usado o que sea incorrecto.',
-    tone: 'error',
-  },
-  taken: {
-    title: 'Email ya registrado',
-    body: 'Esta cuenta ya fue activada por otra vía (por ejemplo, iniciando sesión con Google). Probá ingresar.',
-    tone: 'warning',
-  },
+const TONES: Record<Status, 'success' | 'error' | 'warning'> = {
+  success: 'success',
+  expired: 'warning',
+  invalid: 'error',
+  taken: 'warning',
 };
 
 export default function VerifyEmail() {
+  const { t } = useTranslation();
   const location = useLocation();
 
   const status: Status | null = useMemo(() => {
@@ -46,16 +32,16 @@ export default function VerifyEmail() {
           <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-error-light flex items-center justify-center">
             <AlertCircle className="w-7 h-7 text-error" />
           </div>
-          <h1 className="font-display text-2xl font-bold text-ink mb-3">Enlace inválido</h1>
+          <h1 className="font-display text-2xl font-bold text-ink mb-3">{t('verify.noStatusTitle')}</h1>
           <p className="text-sm text-ink-light leading-relaxed mb-8">
-            No pudimos procesar este enlace. Volvé a registrarte para recibir uno nuevo.
+            {t('verify.noStatusBody')}
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link to="/registrarse" className="btn-primary rounded-xl justify-center">
-              Registrarse de nuevo
+              {t('verify.registerAgain')}
             </Link>
             <Link to="/ingresar" className="btn-ghost rounded-xl justify-center">
-              Iniciar sesión
+              {t('verify.signIn')}
             </Link>
           </div>
         </div>
@@ -63,11 +49,11 @@ export default function VerifyEmail() {
     );
   }
 
-  const copy = COPY[status];
+  const tone = TONES[status];
   const Icon = status === 'success' ? CheckCircle2 : status === 'expired' || status === 'taken' ? Clock : AlertCircle;
   const iconWrap =
-    copy.tone === 'success' ? 'bg-success-light text-success' :
-    copy.tone === 'warning' ? 'bg-chocolate-50 text-chocolate' :
+    tone === 'success' ? 'bg-success-light text-success' :
+    tone === 'warning' ? 'bg-chocolate-50 text-chocolate' :
     'bg-error-light text-error';
 
   return (
@@ -75,35 +61,29 @@ export default function VerifyEmail() {
       <div className="w-full max-w-md text-center">
         <div className="flex items-center justify-center gap-2 mb-8 text-ink-light">
           <BookOpen className="w-4 h-4" />
-          <span className="text-xs font-medium tracking-wide uppercase">Verificación de cuenta</span>
+          <span className="text-xs font-medium tracking-wide uppercase">{t('verify.badge')}</span>
         </div>
 
         <div className={`w-14 h-14 mx-auto mb-5 rounded-2xl flex items-center justify-center ${iconWrap}`}>
           <Icon className="w-7 h-7" />
         </div>
 
-        <h1 className="font-display text-2xl font-bold text-ink mb-3">{copy.title}</h1>
-        <p className="text-sm text-ink-light leading-relaxed mb-8">{copy.body}</p>
+        <h1 className="font-display text-2xl font-bold text-ink mb-3">{t(`verify.${status}.title`)}</h1>
+        <p className="text-sm text-ink-light leading-relaxed mb-8">{t(`verify.${status}.body`)}</p>
 
-        {status === 'success' && (
+        {(status === 'success' || status === 'taken') && (
           <Link to="/ingresar" className="btn-primary rounded-xl justify-center inline-flex">
-            Iniciar sesión
-          </Link>
-        )}
-
-        {status === 'taken' && (
-          <Link to="/ingresar" className="btn-primary rounded-xl justify-center inline-flex">
-            Iniciar sesión
+            {t('verify.signIn')}
           </Link>
         )}
 
         {(status === 'invalid' || status === 'expired') && (
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link to="/registrarse" className="btn-primary rounded-xl justify-center">
-              Registrarse de nuevo
+              {t('verify.registerAgain')}
             </Link>
             <Link to="/ingresar" className="btn-ghost rounded-xl justify-center">
-              Iniciar sesión
+              {t('verify.signIn')}
             </Link>
           </div>
         )}

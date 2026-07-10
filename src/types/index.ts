@@ -1,4 +1,5 @@
 export type UserRole = 'visitor' | 'student' | 'teacher' | 'superuser';
+export type AppLanguage = 'es' | 'en';
 
 export interface User {
   id: string;
@@ -6,6 +7,8 @@ export interface User {
   email: string;
   role: UserRole;
   avatar?: string;
+  // Preferred UI/content language, persisted server-side (PATCH /auth/me).
+  language?: AppLanguage;
   isMainTeacher?: boolean;
 }
 
@@ -18,6 +21,16 @@ export interface Teacher {
   videoUrl?: string;
   showStudentCount?: boolean;
   totalStudents?: number;
+  translations?: { en?: { title?: string; bio?: string; credentials?: string[] } };
+}
+
+// Subtitle track for a module video (.vtt on the media host). `source`
+// distinguishes pipeline output from manual teacher uploads.
+export interface VideoSubtitle {
+  lang: AppLanguage;
+  url: string;
+  source: 'auto' | 'manual';
+  updatedAt?: string;
 }
 
 export interface ModuleVideo {
@@ -26,6 +39,8 @@ export interface ModuleVideo {
   title: string;
   duration: number; // seconds
   order: number;
+  subtitles?: VideoSubtitle[];
+  translations?: { en?: { title?: string } };
 }
 
 export interface Module {
@@ -39,7 +54,11 @@ export interface Module {
   videos: ModuleVideo[];
   videoCount?: number;
   materials: Material[];
+  links?: ModuleLink[];
+  flashcards?: Flashcard[];
+  flashcardCount?: number; // populated by the public endpoint, which strips the cards themselves
   isFree: boolean;
+  translations?: { en?: { title?: string; description?: string; videoDuration?: string } };
 }
 
 export interface Material {
@@ -48,6 +67,22 @@ export interface Material {
   type: 'pdf' | 'docx' | 'pptx' | 'xlsx';
   size: string;
   fileUrl?: string;
+  translations?: { en?: { name?: string } };
+}
+
+export interface ModuleLink {
+  id?: string;
+  title: string; // hyperlink text shown to the student (URL stays hidden)
+  url: string; // omitted by the API for viewers without access
+  description?: string; // shown as the link's tooltip on hover
+  translations?: { en?: { title?: string; description?: string } };
+}
+
+export interface Flashcard {
+  id?: string;
+  question: string; // front of the card
+  answer: string; // back of the card, revealed when the card is flipped
+  translations?: { en?: { question?: string; answer?: string } };
 }
 
 export interface Course {
@@ -70,6 +105,8 @@ export interface Course {
   availability: string;
   hasTest: boolean;
   testConfig?: TestConfig;
+  /** Live size of the exam question bank (from the course-detail endpoint). */
+  questionCount?: number;
   hasCertificate: boolean;
   moneyBackGuarantee?: string;
   rating: number;
@@ -77,6 +114,22 @@ export interface Course {
   studentCount: number;
   createdAt: string;
   featured: boolean;
+  // English overlay (teacher/superuser payloads only; students receive
+  // language-resolved fields instead). `availability` is a state enum and is
+  // never translated in data.
+  translations?: {
+    en?: {
+      title?: string;
+      summary?: string;
+      description?: string;
+      category?: string;
+      duration?: string;
+      discountLabel?: string;
+      moneyBackGuarantee?: string;
+      prerequisites?: string[];
+      tableOfContents?: string[];
+    };
+  };
 }
 
 export interface TestConfig {
@@ -84,6 +137,8 @@ export interface TestConfig {
   timeLimit: number; // in minutes
   maxRetries: number;
   passingScore: number; // percentage
+  timed: boolean; // false = self-paced (no countdown / auto-submit)
+  showExplanations: boolean; // "modo explicaciones": immediate per-question feedback
 }
 
 export interface TestQuestion {
@@ -91,8 +146,11 @@ export interface TestQuestion {
   courseId: string;
   question: string;
   options: string[];
+  explanations?: string[]; // per-option rationale, aligned by index with options
   correctIndex: number;
   order: number;
+  // EN options/explanations must match the canonical options length.
+  translations?: { en?: { question?: string; options?: string[]; explanations?: string[] } };
 }
 
 export interface Question {
@@ -102,6 +160,10 @@ export interface Question {
   text: string;
   options: string[];
   correctAnswer: number;
+  // Present only when the course runs in "modo explicaciones" — the exam
+  // delivery endpoint reveals these so the client can grade on the spot.
+  correctIndex?: number;
+  explanations?: string[];
 }
 
 export interface Review {
@@ -212,6 +274,7 @@ export interface FAQ {
   id: string;
   question: string;
   answer: string;
+  translations?: { en?: { question?: string; answer?: string } };
 }
 
 export interface Testimonial {
@@ -219,6 +282,7 @@ export interface Testimonial {
   name: string;
   text: string;
   courseTitle: string;
+  translations?: { en?: { text?: string; courseTitle?: string } };
 }
 
 export interface Bundle {
@@ -233,6 +297,7 @@ export interface Bundle {
   discountLabel: string;
   imageUrl: string;
   featured: boolean;
+  translations?: { en?: { title?: string; description?: string; discountLabel?: string } };
 }
 
 export type WorkshopModality = 'online' | 'presencial';
@@ -263,6 +328,18 @@ export interface Workshop {
   availability: string;
   featured: boolean;
   createdAt: string;
+  // `availability`/`modality` are state enums and are never translated in data.
+  translations?: {
+    en?: {
+      title?: string;
+      summary?: string;
+      description?: string;
+      category?: string;
+      discountLabel?: string;
+      location?: string;
+      prerequisitesText?: string[];
+    };
+  };
 }
 
 export interface WorkshopRegistration {

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { CalendarClock } from 'lucide-react';
 import type { BundleAvailability } from '@/utils/bundleAvailability';
 
@@ -15,6 +16,7 @@ interface Props {
  * driven by remaining seats).
  */
 export function AvailabilityBadge({ status, variant = 'overlay', className = '' }: Props) {
+  const { t } = useTranslation();
   if (status.kind === 'available') return null;
 
   const overlayBase =
@@ -28,7 +30,7 @@ export function AvailabilityBadge({ status, variant = 'overlay', className = '' 
   return (
     <span className={`${styles} ${className}`}>
       <CalendarClock className="w-3 h-3" />
-      No disponible
+      {t('bundles.notAvailable')}
     </span>
   );
 }

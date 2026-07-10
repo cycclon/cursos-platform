@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Mail, Instagram } from 'lucide-react';
 
 export default function Footer() {
+  const { t } = useTranslation();
   return (
     <footer className="bg-ink text-cream-dark">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -20,18 +22,18 @@ export default function Footer() {
               </div>
             </Link>
             <p className="text-sm text-cream-dark/70 leading-relaxed">
-              Formación jurídica de excelencia para profesionales del derecho.
+              {t('footer.tagline')}
             </p>
           </div>
 
           {/* Navigation */}
           <div>
-            <h4 className="font-display text-sm font-semibold text-gold mb-4 tracking-wide uppercase">Navegación</h4>
+            <h4 className="font-display text-sm font-semibold text-gold mb-4 tracking-wide uppercase">{t('footer.navigation')}</h4>
             <ul className="space-y-2">
               {[
-                { to: '/cursos', label: 'Cursos' },
-                { to: '/sobre-mi', label: 'Sobre Mí' },
-                { to: '/preguntas-frecuentes', label: 'Preguntas Frecuentes' },
+                { to: '/cursos', label: t('footer.courses') },
+                { to: '/sobre-mi', label: t('footer.about') },
+                { to: '/preguntas-frecuentes', label: t('footer.faq') },
               ].map(link => (
                 <li key={link.to}>
                   <Link to={link.to} className="text-sm text-cream-dark/70 hover:text-gold transition-colors">
@@ -44,12 +46,12 @@ export default function Footer() {
 
           {/* Legal */}
           <div>
-            <h4 className="font-display text-sm font-semibold text-gold mb-4 tracking-wide uppercase">Legal</h4>
+            <h4 className="font-display text-sm font-semibold text-gold mb-4 tracking-wide uppercase">{t('footer.legal')}</h4>
             <ul className="space-y-2">
               {[
-                { to: '/terminos-y-condiciones', label: 'Términos y Condiciones' },
-                { to: '/politica-de-privacidad', label: 'Política de Privacidad' },
-                { to: '/politica-de-reembolso', label: 'Política de Reembolso' },
+                { to: '/terminos-y-condiciones', label: t('footer.terms') },
+                { to: '/politica-de-privacidad', label: t('footer.privacy') },
+                { to: '/politica-de-reembolso', label: t('footer.refund') },
               ].map(link => (
                 <li key={link.to}>
                   <Link to={link.to} className="text-sm text-cream-dark/70 hover:text-gold transition-colors">
@@ -62,7 +64,7 @@ export default function Footer() {
 
           {/* Contact */}
           <div>
-            <h4 className="font-display text-sm font-semibold text-gold mb-4 tracking-wide uppercase">Contacto</h4>
+            <h4 className="font-display text-sm font-semibold text-gold mb-4 tracking-wide uppercase">{t('footer.contact')}</h4>
             <ul className="space-y-3">
               <li>
                 <a href="mailto:contacto@academiadelitigacion.com.ar" className="flex items-center gap-2 text-sm text-cream-dark/70 hover:text-gold transition-colors">
@@ -88,7 +90,7 @@ export default function Footer() {
 
         <div className="mt-10 pt-6 border-t border-cream-dark/10 flex flex-col items-center gap-2">
           <p className="text-xs text-cream-dark/40">
-            &copy; {new Date().getFullYear()} Academia de Litigación — Dra. Flamini. Todos los derechos reservados.
+            &copy; {new Date().getFullYear()} Academia de Litigación — Dra. Flamini. {t('footer.rights')}
           </p>
           <a
             href="https://kaspi.com.ar"
@@ -96,10 +98,10 @@ export default function Footer() {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-[11px] text-cream-dark/30 hover:text-gold/70 transition-colors"
           >
-            Desarrollado por
+            {t('footer.developedBy')}
             <span className="font-semibold tracking-wide">KASPI</span>
             <span className="text-cream-dark/20">—</span>
-            <span className="italic">Sistemas inteligentes</span>
+            <span className="italic">{t('footer.developerTagline')}</span>
           </a>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { BookOpen, Award, ArrowRight, Package, CheckCircle2, ShieldCheck, AlertTriangle, CalendarClock, Loader2 } from 'lucide-react';
 import { bundlesService } from '@/services/bundles';
 import { coursesService } from '@/services/courses';
@@ -10,7 +11,7 @@ import { enrollmentsService } from '@/services/enrollments';
 import { paymentsService } from '@/services/payments';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { formatPrice } from '@/utils/format';
+import { formatPrice, formatDateTime } from '@/utils/format';
 import { bundleCapacityStatus } from '@/utils/capacity';
 import { bundleAvailability, bundleAvailabilityReason } from '@/utils/bundleAvailability';
 import { CapacityBadge } from '@/components/ui/CapacityBadge';
@@ -30,12 +31,13 @@ function getBundleWorkshops(bundle: Bundle, workshops: Workshop[]): Workshop[] {
 function formatWorkshopDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return new Intl.DateTimeFormat('es-AR', { dateStyle: 'long', timeStyle: 'short' }).format(d);
+  return formatDateTime(d);
 }
 
 export default function BundleDetail() {
   const { slug } = useParams<{ slug: string }>();
   const { isAuthenticated } = useAuth();
+  const { t } = useTranslation();
   const toast = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -67,7 +69,7 @@ export default function BundleDetail() {
 
   const handleEnroll = async () => {
     if (!isAuthenticated) {
-      toast.error('Iniciá sesión para inscribirte.');
+      toast.error(t('bundles.signInToEnroll'));
       navigate('/ingresar');
       return;
     }
@@ -92,10 +94,10 @@ export default function BundleDetail() {
         ));
         queryClient.invalidateQueries({ queryKey: ['enrollments'] });
         queryClient.invalidateQueries({ queryKey: ['workshop-registrations'] });
-        toast.success('¡Inscripción exitosa!');
+        toast.success(t('bundles.enrollSuccess'));
         setShowConfirm(false);
       } catch {
-        toast.error('Error al procesar la inscripción.');
+        toast.error(t('bundles.enrollError'));
       } finally {
         setEnrolling(false);
       }
@@ -110,11 +112,11 @@ export default function BundleDetail() {
     } catch (err: unknown) {
       const error = err as { status?: number; message?: string };
       if (error.status === 503 && error.message === 'mercadopago_not_connected') {
-        toast.error('La docente está actualizando su forma de cobro. Volvé a intentar en unos minutos.');
+        toast.error(t('bundles.paymentUpdating'));
       } else if (error.message === 'bundle_course_not_available') {
-        toast.error('Uno de los cursos incluidos en este combo no está disponible.');
+        toast.error(t('bundles.courseUnavailable'));
       } else {
-        toast.error('Error al iniciar el pago. Intentá de nuevo.');
+        toast.error(t('bundles.paymentError'));
       }
       setEnrolling(false);
     }
@@ -138,8 +140,8 @@ export default function BundleDetail() {
   if (!bundle) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-        <h1 className="font-display text-2xl text-ink">Combo no encontrado</h1>
-        <Link to="/combos" className="text-chocolate mt-4 inline-block">Volver a combos</Link>
+        <h1 className="font-display text-2xl text-ink">{t('bundles.notFound')}</h1>
+        <Link to="/combos" className="text-chocolate mt-4 inline-block">{t('bundles.backToBundles')}</Link>
       </div>
     );
   }
@@ -152,7 +154,7 @@ export default function BundleDetail() {
   const isSoldOut = capacityStatus.kind === 'sold_out';
   const availability = bundleAvailability(bundleCourses, bundleWorkshops);
   const isUnavailable = availability.kind === 'unavailable';
-  const unavailabilityReason = bundleAvailabilityReason(availability);
+  const unavailabilityReason = bundleAvailabilityReason(availability, t);
   const cantBuy = isSoldOut || isUnavailable;
 
   const enrolledCourseIds = new Set(enrollments.map(e => e.courseId));
@@ -168,16 +170,16 @@ export default function BundleDetail() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
           <div className="grid lg:grid-cols-3 gap-10">
             <div className="lg:col-span-2">
-              <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">Combo Especial</span>
+              <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">{t('bundles.specialBundle')}</span>
               <h1 className="font-display text-3xl md:text-4xl font-bold text-ink mt-2 mb-4 text-balance">
                 {bundle.title}
               </h1>
               <p className="text-ink-light leading-relaxed mb-6">{bundle.description}</p>
 
               <div className="flex flex-wrap items-center gap-4 text-sm text-ink-light">
-                <span className="flex items-center gap-1.5"><BookOpen className="w-4 h-4" />{bundleCourses.length} cursos</span>
-                <span className="flex items-center gap-1.5"><Package className="w-4 h-4" />{totalModules} módulos</span>
-                <span className="flex items-center gap-1.5"><Award className="w-4 h-4 text-gold" />Con certificados</span>
+                <span className="flex items-center gap-1.5"><BookOpen className="w-4 h-4" />{t('bundles.coursesCount', { count: bundleCourses.length })}</span>
+                <span className="flex items-center gap-1.5"><Package className="w-4 h-4" />{t('bundles.modulesCount', { count: totalModules })}</span>
+                <span className="flex items-center gap-1.5"><Award className="w-4 h-4 text-gold" />{t('bundles.withCertificates')}</span>
               </div>
             </div>
 
@@ -207,13 +209,13 @@ export default function BundleDetail() {
                   <span className="font-display text-3xl font-bold text-chocolate">{formatPrice(bundle.price)}</span>
                   <span className="text-lg text-ink-light line-through">{formatPrice(bundle.originalPrice)}</span>
                 </div>
-                <p className="text-success font-semibold text-sm mt-1">Ahorrás {formatPrice(savings)}</p>
+                <p className="text-success font-semibold text-sm mt-1">{t('bundles.youSave', { amount: formatPrice(savings) })}</p>
               </div>
 
               {allEnrolled ? (
                 <div className="flex items-center gap-2 justify-center py-3 px-4 rounded-xl bg-success-light border border-success/20">
                   <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
-                  <span className="text-sm font-semibold text-success">Ya estás inscripto/a en todos los cursos de este combo</span>
+                  <span className="text-sm font-semibold text-success">{t('bundles.alreadyEnrolledAll')}</span>
                 </div>
               ) : showConfirm ? (
                 <div className="space-y-3">
@@ -221,7 +223,7 @@ export default function BundleDetail() {
                     <AlertTriangle className="w-4 h-4 text-gold shrink-0 mt-0.5" />
                     <div className="text-xs text-ink-light">
                       <p className="font-semibold text-ink mb-1">
-                        Ya estás inscripto/a en {enrolledInBundle.length === 1 ? '1 curso' : `${enrolledInBundle.length} cursos`} de este combo:
+                        {t('bundles.enrolledInSomeTitle', { count: enrolledInBundle.length })}
                       </p>
                       <ul className="list-disc list-inside space-y-0.5">
                         {enrolledInBundle.map(c => (
@@ -229,7 +231,7 @@ export default function BundleDetail() {
                         ))}
                       </ul>
                       <p className="mt-2 text-ink">
-                        Se {notEnrolledCount === 1 ? 'agregará 1 curso nuevo' : `agregarán ${notEnrolledCount} cursos nuevos`} a tu panel.
+                        {t('bundles.willAddCourses', { count: notEnrolledCount })}
                       </p>
                     </div>
                   </div>
@@ -241,16 +243,16 @@ export default function BundleDetail() {
                     {enrolling
                       ? <Loader2 className="w-4 h-4 animate-spin" />
                       : isUnavailable
-                        ? 'Combo no disponible'
+                        ? t('bundles.bundleUnavailable')
                         : isSoldOut
-                          ? 'Combo agotado'
-                          : 'Confirmar inscripción'}
+                          ? t('bundles.bundleSoldOut')
+                          : t('bundles.confirmEnrollment')}
                   </button>
                   <button
                     onClick={() => setShowConfirm(false)}
                     className="btn-ghost btn-md btn-full rounded-xl"
                   >
-                    Cancelar
+                    {t('common.cancel')}
                   </button>
                 </div>
               ) : (
@@ -259,7 +261,7 @@ export default function BundleDetail() {
                     <div className="flex items-start gap-2 p-3 rounded-xl bg-gold/10 border border-gold/20 mb-3">
                       <AlertTriangle className="w-4 h-4 text-gold shrink-0 mt-0.5" />
                       <p className="text-xs text-ink-light">
-                        Ya estás inscripto/a en {enrolledInBundle.length} de {bundleCourses.length} cursos de este combo.
+                        {t('bundles.enrolledInSomeShort', { enrolled: enrolledInBundle.length, total: bundleCourses.length })}
                       </p>
                     </div>
                   )}
@@ -271,10 +273,10 @@ export default function BundleDetail() {
                     {enrolling
                       ? <Loader2 className="w-4 h-4 animate-spin" />
                       : isUnavailable
-                        ? 'Combo no disponible'
+                        ? t('bundles.bundleUnavailable')
                         : isSoldOut
-                          ? 'Combo agotado'
-                          : 'Inscribirme ahora'}
+                          ? t('bundles.bundleSoldOut')
+                          : t('bundles.enrollNow')}
                   </button>
                   {isUnavailable && unavailabilityReason && (
                     <div className="mt-3 flex items-start gap-2 p-3 rounded-xl bg-chocolate/5 border border-chocolate/10">
@@ -285,7 +287,7 @@ export default function BundleDetail() {
                           <ul className="list-disc list-inside mt-1 space-y-0.5">
                             {availability.items.map((it) => (
                               <li key={`${it.kind}-${it.id}`}>
-                                {it.title} <span className="text-ink-light/80">— {it.status}</span>
+                                {it.title} <span className="text-ink-light/80">— {t(`common.availability.${it.status}`, it.status)}</span>
                               </li>
                             ))}
                           </ul>
@@ -295,7 +297,7 @@ export default function BundleDetail() {
                   )}
                   {isSoldOut && (
                     <p className="mt-3 text-xs text-ink-light">
-                      Uno de los talleres incluidos en este combo ya no tiene cupos disponibles.
+                      {t('bundles.soldOutHint')}
                     </p>
                   )}
                 </>
@@ -303,7 +305,7 @@ export default function BundleDetail() {
 
               <div className="mt-4 flex items-start gap-2 text-xs text-ink-light">
                 <ShieldCheck className="w-4 h-4 text-success shrink-0 mt-0.5" />
-                <span>Acceso a todos los cursos del combo una vez acreditado el pago.</span>
+                <span>{t('bundles.accessAfterPayment')}</span>
               </div>
             </div>
           </div>
@@ -314,7 +316,7 @@ export default function BundleDetail() {
         {/* Included Courses */}
         {bundleCourses.length > 0 && (
           <div className="mb-12">
-            <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">Cursos incluidos</h2>
+            <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">{t('bundles.coursesIncluded')}</h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children mt-6">
               {bundleCourses.map(course => (
                 <CourseCard key={course.id} course={course} />
@@ -326,7 +328,7 @@ export default function BundleDetail() {
         {/* Included Workshops */}
         {bundleWorkshops.length > 0 && (
           <div className="mb-12">
-            <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">Talleres incluidos</h2>
+            <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">{t('bundles.workshopsIncluded')}</h2>
             <div className="grid md:grid-cols-2 gap-4 mt-6">
               {bundleWorkshops.map(workshop => (
                 <Link
@@ -342,7 +344,7 @@ export default function BundleDetail() {
                   <div className="flex-1 min-w-0">
                     <span className="text-[10px] font-bold text-gold uppercase tracking-wider flex items-center gap-1">
                       {workshop.modality === 'online' ? <Video className="w-3 h-3" /> : <MapPin className="w-3 h-3" />}
-                      Taller {workshop.modality}
+                      {t('bundles.workshopLabel', { modality: t(`common.modality.${workshop.modality}`, workshop.modality) })}
                     </span>
                     <h3 className="font-display text-base font-bold text-ink mt-1 group-hover:text-chocolate transition-colors line-clamp-2">
                       {workshop.title}
@@ -360,14 +362,14 @@ export default function BundleDetail() {
 
         {/* Benefits */}
         <div className="bg-parchment rounded-xl p-6 border border-chocolate-100/20 shadow-warm max-w-3xl">
-          <h3 className="font-display text-lg font-bold text-ink mb-4 gold-underline">Qué incluye este combo</h3>
+          <h3 className="font-display text-lg font-bold text-ink mb-4 gold-underline">{t('bundles.whatIncludes')}</h3>
           <ul className="space-y-3">
             {[
-              `Acceso a ${bundleCourses.length} cursos completos`,
-              'Material descargable de todos los cursos',
-              `${totalModules} módulos de contenido`,
-              'Certificados de finalización',
-              `Ahorro de ${formatPrice(savings)} sobre el precio individual`,
+              t('bundles.accessAllCourses', { count: bundleCourses.length }),
+              t('bundles.downloadableAll'),
+              t('bundles.modulesOfContent', { count: totalModules }),
+              t('bundles.completionCertificates'),
+              t('bundles.savingsOverIndividual', { amount: formatPrice(savings) }),
             ].map((item, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-ink-light">
                 <CheckCircle2 className="w-4 h-4 text-gold shrink-0 mt-0.5" />
@@ -383,7 +385,7 @@ export default function BundleDetail() {
             className="inline-flex items-center gap-1 text-sm text-chocolate font-medium hover:text-chocolate-dark transition-colors"
           >
             <ArrowRight className="w-3.5 h-3.5 rotate-180" />
-            Volver a combos
+            {t('bundles.backToBundles')}
           </Link>
         </div>
       </div>

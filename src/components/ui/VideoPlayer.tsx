@@ -1,6 +1,9 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Play, CheckCircle2 } from 'lucide-react';
 import { getVideoProvider, getPreziEmbedUrl } from '@/utils/video';
+import { useLanguage } from '@/context/LanguageContext';
+import type { VideoSubtitle } from '@/types';
 
 const SAVE_INTERVAL_MS = 10_000; // Report progress every 10 seconds
 const TICK_INTERVAL_MS = 1_000;  // Internal tracking tick
@@ -17,6 +20,8 @@ interface ProgressData {
 interface VideoPlayerProps {
   url: string;
   videoId: string;
+  // WebVTT tracks (direct/HTML5 videos only — YouTube/Prezi carry their own captions).
+  subtitles?: VideoSubtitle[];
   initialPosition?: number;
   maxAllowedPosition?: number;
   initialWatchedSeconds?: number;
@@ -24,9 +29,12 @@ interface VideoPlayerProps {
   onVideoEnded?: () => void;
 }
 
+const SUBTITLE_LABELS: Record<string, string> = { es: 'Español', en: 'English' };
+
 export default function VideoPlayer({
   url,
   videoId,
+  subtitles,
   initialPosition = 0,
   maxAllowedPosition = 0,
   initialWatchedSeconds = 0,
@@ -34,7 +42,10 @@ export default function VideoPlayer({
   onVideoEnded,
 }: VideoPlayerProps) {
   const provider = getVideoProvider(url);
+  const { language } = useLanguage();
+  const { t } = useTranslation();
   const [hasCompleted, setHasCompleted] = useState(false);
+  const videoSubtitles = subtitles ?? [];
 
   // Tracking refs
   const watchedSecondsRef = useRef(0);
@@ -446,7 +457,7 @@ export default function VideoPlayer({
           <div className="w-20 h-20 rounded-full bg-cream/10 flex items-center justify-center mx-auto mb-4">
             <Play className="w-10 h-10 text-cream ml-1" />
           </div>
-          <p className="text-cream-dark/60">Este módulo no tiene video</p>
+          <p className="text-cream-dark/60">{t('player.noVideo')}</p>
         </div>
       </div>
     );
@@ -466,7 +477,7 @@ export default function VideoPlayer({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <p className="text-cream-dark/60">URL de Prezi no válida</p>
+            <p className="text-cream-dark/60">{t('player.invalidPrezi')}</p>
           </div>
         )}
       </div>
@@ -487,13 +498,29 @@ export default function VideoPlayer({
           controls
           controlsList="noplaybackrate"
           playsInline
-        />
+          // Subtitle .vtt files live on the media host (cross-origin), and
+          // <track> only loads cross-origin with CORS. Only opt into CORS
+          // mode when there are tracks, so subtitle-less playback can never
+          // regress on a missing CORS header.
+          crossOrigin={videoSubtitles.length > 0 ? 'anonymous' : undefined}
+        >
+          {videoSubtitles.map((track) => (
+            <track
+              key={`${track.lang}-${track.url}`}
+              kind="subtitles"
+              src={track.url}
+              srcLang={track.lang}
+              label={SUBTITLE_LABELS[track.lang] ?? track.lang}
+              default={track.lang === language}
+            />
+          ))}
+        </video>
       )}
 
       {hasCompleted && (
         <div className="absolute top-4 right-4 bg-success text-white px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 z-10 shadow-lg">
           <CheckCircle2 className="w-3.5 h-3.5" />
-          Completado
+          {t('player.completed')}
         </div>
       )}
     </div>

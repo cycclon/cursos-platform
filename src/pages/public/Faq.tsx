@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { faqsService } from '@/services/faqs';
 import Accordion from '@/components/ui/Accordion';
 import { Mail } from 'lucide-react';
 
 export default function Faq() {
+  const { t } = useTranslation();
   const { data: faqs = [], isLoading } = useQuery({
     queryKey: ['faqs'],
     queryFn: faqsService.getFaqs,
@@ -15,12 +17,12 @@ export default function Faq() {
     <div>
       <section className="bg-hero-gradient diagonal-accent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-          <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">Ayuda</span>
+          <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">{t('faqPage.badge')}</span>
           <h1 className="font-display text-3xl md:text-4xl font-bold text-ink mt-2 mb-3">
-            Preguntas Frecuentes
+            {t('faqPage.title')}
           </h1>
           <p className="text-ink-light max-w-xl">
-            Encontrá respuestas a las consultas más habituales sobre nuestros cursos, pagos y certificaciones.
+            {t('faqPage.subtitle')}
           </p>
         </div>
       </section>
@@ -37,14 +39,14 @@ export default function Faq() {
         )}
 
         <div className="mt-12 text-center bg-parchment rounded-xl p-8 border border-chocolate-100/20 shadow-warm">
-          <p className="font-display text-lg font-semibold text-ink mb-2">¿No encontraste lo que buscabas?</p>
-          <p className="text-sm text-ink-light mb-4">Escribinos y te respondemos a la brevedad.</p>
+          <p className="font-display text-lg font-semibold text-ink mb-2">{t('faqPage.notFound')}</p>
+          <p className="text-sm text-ink-light mb-4">{t('faqPage.writeUs')}</p>
           <a
             href="mailto:contacto@cursosderecho.com"
             className="inline-flex items-center gap-2 btn-primary btn-md rounded-xl"
           >
             <Mail className="w-4 h-4" />
-            Contactar
+            {t('faqPage.contact')}
           </a>
         </div>
       </div>

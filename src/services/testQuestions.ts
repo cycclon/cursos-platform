@@ -5,8 +5,11 @@ export interface TestQuestion {
   courseId: string;
   question: string;
   options: string[];
+  explanations?: string[];
   correctIndex: number;
   order: number;
+  // EN options/explanations must match the canonical options length.
+  translations?: { en?: { question?: string; options?: string[]; explanations?: string[] } };
 }
 
 export const testQuestionsService = {

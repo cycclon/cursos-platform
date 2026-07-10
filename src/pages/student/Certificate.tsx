@@ -1,9 +1,12 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Printer, ArrowLeft, Award } from 'lucide-react';
 import { certificatesService } from '@/services/certificates';
+import { formatDate } from '@/utils/format';
 
 export default function Certificate() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
 
   const { data: cert, isLoading } = useQuery({
@@ -27,15 +30,13 @@ export default function Certificate() {
   if (!cert) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-        <h1 className="font-display text-2xl text-ink">Certificado no encontrado</h1>
-        <Link to="/mi-panel" className="text-chocolate mt-4 inline-block">Volver a mi panel</Link>
+        <h1 className="font-display text-2xl text-ink">{t('certificate.notFound')}</h1>
+        <Link to="/mi-panel" className="text-chocolate mt-4 inline-block">{t('certificate.backToPanel')}</Link>
       </div>
     );
   }
 
-  const dateStr = new Date(cert.issuedAt).toLocaleDateString('es-AR', {
-    year: 'numeric', month: 'long', day: 'numeric',
-  });
+  const dateStr = formatDate(cert.issuedAt);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12 print-certificate">
@@ -43,14 +44,14 @@ export default function Certificate() {
       <div className="flex items-center justify-between mb-8 no-print">
         <Link to="/mi-panel" className="inline-flex items-center gap-2 text-sm text-chocolate font-medium hover:text-chocolate-dark transition-colors">
           <ArrowLeft className="w-4 h-4" />
-          Volver a mi panel
+          {t('certificate.backToPanel')}
         </Link>
         <button
           onClick={() => window.print()}
           className="inline-flex items-center gap-2 btn-primary btn-md rounded-lg"
         >
           <Printer className="w-4 h-4" />
-          Imprimir / Descargar
+          {t('certificate.print')}
         </button>
       </div>
 
@@ -72,18 +73,18 @@ export default function Certificate() {
               <Award className="w-8 h-8 text-gold-light" />
             </div>
 
-            <p className="text-xs font-semibold text-gold uppercase tracking-[0.3em] mb-2">Certificado de finalización</p>
+            <p className="text-xs font-semibold text-gold uppercase tracking-[0.3em] mb-2">{t('certificate.title')}</p>
 
             <h1 className="font-display text-3xl md:text-4xl font-bold text-ink mb-8">
-              Certificado de Aprobación
+              {t('certificate.heading')}
             </h1>
 
-            <p className="text-sm text-ink-light mb-2">Se certifica que</p>
+            <p className="text-sm text-ink-light mb-2">{t('certificate.certifies')}</p>
             <p className="font-display text-2xl md:text-3xl font-bold text-chocolate mb-6">
               {cert.studentName}
             </p>
 
-            <p className="text-sm text-ink-light mb-2">ha completado satisfactoriamente el curso</p>
+            <p className="text-sm text-ink-light mb-2">{t('certificate.completedCourse')}</p>
             <p className="font-display text-xl md:text-2xl font-bold text-ink mb-6">
               {cert.courseTitle}
             </p>
@@ -91,7 +92,7 @@ export default function Certificate() {
             {cert.score && (
               <div className="inline-flex items-center gap-2 bg-success-light text-success rounded-full px-4 py-1.5 text-sm font-semibold mb-6">
                 <Award className="w-4 h-4" />
-                Nota: {cert.score}%
+                {t('certificate.score', { score: cert.score })}
               </div>
             )}
 
@@ -101,12 +102,12 @@ export default function Certificate() {
               <div>
                 <div className="w-32 h-px bg-ink/20 mx-auto mb-2" />
                 <p className="font-display text-sm font-semibold text-ink">{cert.teacherName}</p>
-                <p className="text-xs text-ink-light">Docente</p>
+                <p className="text-xs text-ink-light">{t('certificate.teacher')}</p>
               </div>
               <div>
                 <div className="w-32 h-px bg-ink/20 mx-auto mb-2" />
                 <p className="font-display text-sm font-semibold text-ink">{dateStr}</p>
-                <p className="text-xs text-ink-light">Fecha de emisión</p>
+                <p className="text-xs text-ink-light">{t('certificate.issueDate')}</p>
               </div>
             </div>
 

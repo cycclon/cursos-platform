@@ -4,9 +4,12 @@ import {
   Camera, Plus, X, Loader2, Save, Video, GripVertical,
   CheckCircle2, CreditCard, ExternalLink, Unlink, AlertCircle,
 } from 'lucide-react';
+import EnglishSection from '@/components/teacher/EnglishSection';
+import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 import { teacherService } from '@/services/teacher';
 import { uploadsService } from '@/services/uploads';
 import { mercadoPagoService } from '@/services/mercadoPago';
+import { pruneEn } from '@/utils/translations';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -79,6 +82,9 @@ export default function ProfileSettings() {
     photoUrl: '',
     credentials: [] as string[],
     videoUrl: '',
+    enTitle: '',
+    enBio: '',
+    enCredentials: [] as string[],
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -94,6 +100,9 @@ export default function ProfileSettings() {
         photoUrl: teacher.photoUrl || '',
         credentials: teacher.credentials || [],
         videoUrl: teacher.videoUrl || '',
+        enTitle: teacher.translations?.en?.title ?? '',
+        enBio: teacher.translations?.en?.bio ?? '',
+        enCredentials: teacher.translations?.en?.credentials ?? [],
       });
     }
   }, [teacher]);
@@ -156,6 +165,42 @@ export default function ProfileSettings() {
     }
   };
 
+  const { translating, runTranslate } = useAutoTranslate();
+
+  const handleAutoTranslate = async () => {
+    const draft = {
+      enTitle: formData.enTitle,
+      enBio: formData.enBio,
+      enCredentials: [...formData.enCredentials],
+    };
+    const slots: { text: string; apply: (v: string) => void }[] = [];
+    if (formData.title.trim() && !draft.enTitle.trim()) {
+      slots.push({ text: formData.title, apply: v => { draft.enTitle = v; } });
+    }
+    if (formData.bio.trim() && !draft.enBio.trim()) {
+      slots.push({ text: formData.bio, apply: v => { draft.enBio = v; } });
+    }
+    const canonicalCreds = formData.credentials.map(c => c.trim()).filter(Boolean);
+    if (canonicalCreds.length > 0 && draft.enCredentials.filter(c => c.trim()).length === 0) {
+      const acc: string[] = new Array(canonicalCreds.length).fill('');
+      canonicalCreds.forEach((cred, idx) =>
+        slots.push({ text: cred, apply: v => { acc[idx] = v; draft.enCredentials = acc; } }),
+      );
+    }
+    if (slots.length === 0) {
+      toast.success('No hay campos en inglés pendientes de completar.');
+      return;
+    }
+    const translations = await runTranslate(
+      slots.map(s => s.text),
+      'Perfil público de una abogada docente de litigación (título profesional, biografía, credenciales)',
+    );
+    if (!translations) return;
+    slots.forEach((s, i) => s.apply(translations[i]));
+    setFormData(prev => ({ ...prev, ...draft }));
+    toast.success('Traducción lista. Revisá antes de guardar.');
+  };
+
   const handleSave = async () => {
     if (!formData.title.trim() || !formData.bio.trim()) {
       toast.error('El título y la biografía son obligatorios.');
@@ -165,9 +210,18 @@ export default function ProfileSettings() {
     try {
       const cleanCredentials = formData.credentials.filter(c => c.trim());
       await teacherService.updateTeacher({
-        ...formData,
+        title: formData.title,
+        bio: formData.bio,
+        photoUrl: formData.photoUrl,
         credentials: cleanCredentials,
         videoUrl: formData.videoUrl || undefined,
+        translations: {
+          en: pruneEn({
+            title: formData.enTitle,
+            bio: formData.enBio,
+            credentials: formData.enCredentials,
+          }),
+        },
       });
       queryClient.invalidateQueries({ queryKey: ['teacher'] });
       toast.success('Perfil actualizado correctamente.');
@@ -504,7 +558,7 @@ export default function ProfileSettings() {
               )}
 
               <p className="text-xs text-ink-light">
-                Formato: MP4. Máximo 500 MB. Este video aparecerá en tu página "Sobre Mí".
+                Formato: MP4. Máximo 1,5 GB. Este video aparecerá en tu página "Sobre Mí".
               </p>
 
               {formData.videoUrl && (
@@ -520,6 +574,41 @@ export default function ProfileSettings() {
               )}
             </div>
           </div>
+
+          {/* Traducción al inglés */}
+          <EnglishSection onAutoTranslate={handleAutoTranslate} translating={translating} defaultOpen={!!formData.enTitle}>
+            <div>
+              <label className="block text-sm font-medium text-ink mb-1.5">Título profesional (EN)</label>
+              <input
+                type="text"
+                value={formData.enTitle}
+                onChange={e => setFormData(prev => ({ ...prev, enTitle: e.target.value }))}
+                placeholder={formData.title || 'e.g. Trial Attorney & Law Professor'}
+                className={INPUT}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ink mb-1.5">Biografía (EN)</label>
+              <textarea
+                value={formData.enBio}
+                onChange={e => setFormData(prev => ({ ...prev, enBio: e.target.value }))}
+                rows={6}
+                className={`${INPUT} resize-y`}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ink mb-1.5">
+                Credenciales (EN)
+                <span className="text-xs text-ink-light font-normal ml-1">— una por línea</span>
+              </label>
+              <textarea
+                value={formData.enCredentials.join('\n')}
+                onChange={e => setFormData(prev => ({ ...prev, enCredentials: e.target.value.split('\n') }))}
+                rows={4}
+                className={`${INPUT} resize-y`}
+              />
+            </div>
+          </EnglishSection>
 
           {/* Save button */}
           <div className="flex justify-end">

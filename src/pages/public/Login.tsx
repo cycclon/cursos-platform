@@ -1,12 +1,14 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BookOpen, Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { ApiError } from '@/services/api';
+import { localizeApiError } from '@/i18n/errors';
 
 export default function Login() {
   const { isAuthenticated, loginWithGoogle, loginWithEmail, role } = useAuth();
+  const { t } = useTranslation();
   const toast = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,9 +27,9 @@ export default function Login() {
     setLoading(true);
     try {
       await loginWithEmail({ email, password, rememberMe });
-      toast.success('Sesión iniciada correctamente.');
+      toast.success(t('auth.signedIn'));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Ocurrió un error inesperado.');
+      setError(localizeApiError(err, t));
     } finally {
       setLoading(false);
     }
@@ -47,10 +49,10 @@ export default function Login() {
             <BookOpen className="w-8 h-8 text-gold-light" />
           </div>
           <h2 className="font-display text-3xl font-bold text-cream mb-4">
-            Bienvenido/a
+            {t('auth.welcomeTitle')}
           </h2>
           <p className="text-cream-dark/60 leading-relaxed">
-            Accedé a tus cursos, continuá tu formación y alcanzá tus metas profesionales.
+            {t('auth.welcomeSub')}
           </p>
         </div>
       </div>
@@ -59,9 +61,9 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center px-6 py-12 bg-cream">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <h1 className="font-display text-3xl font-bold text-ink mb-2">Ingresar</h1>
+            <h1 className="font-display text-3xl font-bold text-ink mb-2">{t('auth.signInTitle')}</h1>
             <p className="text-sm text-ink-light">
-              Ingresá con tu email o con Google
+              {t('auth.signInSub')}
             </p>
           </div>
 
@@ -74,7 +76,7 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-4 mb-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-ink mb-1.5">Email</label>
+              <label htmlFor="email" className="block text-sm font-medium text-ink mb-1.5">{t('auth.email')}</label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-light/60" />
                 <input
@@ -84,13 +86,13 @@ export default function Login() {
                   autoComplete="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="tu@email.com"
+                  placeholder={t('auth.emailPlaceholder')}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-chocolate-100/40 bg-parchment text-sm text-ink placeholder:text-ink-light/60 focus:outline-none focus:border-chocolate/40 focus:ring-2 focus:ring-chocolate/10 transition-all"
                 />
               </div>
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-ink mb-1.5">Contraseña</label>
+              <label htmlFor="password" className="block text-sm font-medium text-ink mb-1.5">{t('auth.password')}</label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-light/60" />
                 <input
@@ -100,7 +102,7 @@ export default function Login() {
                   autoComplete="current-password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  placeholder="Tu contraseña"
+                  placeholder={t('auth.passwordPlaceholder')}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-chocolate-100/40 bg-parchment text-sm text-ink placeholder:text-ink-light/60 focus:outline-none focus:border-chocolate/40 focus:ring-2 focus:ring-chocolate/10 transition-all"
                 />
               </div>
@@ -113,7 +115,7 @@ export default function Login() {
                 className="w-4 h-4 rounded border-chocolate-100/50 bg-parchment text-chocolate accent-chocolate focus:ring-2 focus:ring-chocolate/20 focus:ring-offset-0 cursor-pointer"
               />
               <span className="text-sm text-ink-light group-hover:text-ink transition-colors">
-                Recordarme en este dispositivo
+                {t('auth.rememberMe')}
               </span>
             </label>
             <button
@@ -121,14 +123,14 @@ export default function Login() {
               disabled={loading}
               className="btn-primary btn-lg btn-full rounded-xl justify-center disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Ingresar'}
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : t('auth.signInButton')}
             </button>
           </form>
 
           {/* Divider */}
           <div className="flex items-center gap-4 mb-6">
             <div className="flex-1 h-px bg-chocolate-100/30" />
-            <span className="text-xs text-ink-light/60 font-medium">o</span>
+            <span className="text-xs text-ink-light/60 font-medium">{t('auth.or')}</span>
             <div className="flex-1 h-px bg-chocolate-100/30" />
           </div>
 
@@ -143,18 +145,18 @@ export default function Login() {
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
             </svg>
-            Continuar con Google
+            {t('auth.continueWithGoogle')}
           </button>
 
           <p className="text-center text-sm text-ink-light mt-8">
-            ¿No tenés cuenta?{' '}
+            {t('auth.noAccount')}{' '}
             <Link to="/registrarse" className="font-semibold text-chocolate hover:text-chocolate-dark transition-colors">
-              Registrate
+              {t('auth.registerLink')}
             </Link>
           </p>
 
           <p className="text-xs text-ink-light/60 mt-4 text-center">
-            Al ingresar, aceptás nuestros términos y condiciones.
+            {t('auth.termsNotice')}
           </p>
         </div>
       </div>

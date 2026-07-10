@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Flame, Lock } from 'lucide-react';
 import type { CapacityStatus } from '@/utils/capacity';
 
@@ -15,6 +16,7 @@ interface Props {
  * - `inline` is a flex pill suitable for meta rows or detail headers.
  */
 export function CapacityBadge({ status, variant = 'overlay', className = '' }: Props) {
+  const { t } = useTranslation();
   if (status.kind === 'unlimited' || status.kind === 'available') return null;
 
   const overlayBase =
@@ -28,7 +30,7 @@ export function CapacityBadge({ status, variant = 'overlay', className = '' }: P
     return (
       <span className={`${styles} ${className}`}>
         <Lock className="w-3 h-3" />
-        Agotado
+        {t('capacity.soldOut')}
       </span>
     );
   }
@@ -38,8 +40,8 @@ export function CapacityBadge({ status, variant = 'overlay', className = '' }: P
     ? `${overlayBase} bg-error text-cream`
     : `${inlineBase} bg-error/10 text-error`;
   const label = status.seatsLeft === 1
-    ? '¡Último cupo!'
-    : `¡Últimos ${status.seatsLeft} cupos!`;
+    ? t('capacity.lastSeat')
+    : t('capacity.lastSeats', { count: status.seatsLeft });
   return (
     <span className={`${styles} ${className}`}>
       <Flame className="w-3 h-3" />

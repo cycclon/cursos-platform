@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import {
   CalendarDays, Clock, Video, MapPin, Users, ArrowRight, ShieldCheck,
   CheckCircle2, AlertTriangle, Loader2,
@@ -12,19 +13,20 @@ import { enrollmentsService } from '@/services/enrollments';
 import { paymentsService } from '@/services/payments';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { formatPrice } from '@/utils/format';
+import { formatPrice, formatDateTime } from '@/utils/format';
 import { workshopCapacityStatus } from '@/utils/capacity';
 import { CapacityBadge } from '@/components/ui/CapacityBadge';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return new Intl.DateTimeFormat('es-AR', { dateStyle: 'full', timeStyle: 'short' }).format(d);
+  return formatDateTime(d, { dateStyle: 'full', timeStyle: 'short' });
 }
 
 export default function WorkshopDetail() {
   const { slug } = useParams<{ slug: string }>();
   const { isAuthenticated } = useAuth();
+  const { t } = useTranslation();
   const toast = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -69,7 +71,7 @@ export default function WorkshopDetail() {
 
   const handleEnroll = async () => {
     if (!isAuthenticated) {
-      toast.error('Iniciá sesión para inscribirte.');
+      toast.error(t('workshops.signInToEnroll'));
       navigate('/ingresar');
       return;
     }
@@ -80,7 +82,7 @@ export default function WorkshopDetail() {
       if (workshop.price === 0) {
         await workshopRegistrationsService.register(workshop.id);
         queryClient.invalidateQueries({ queryKey: ['workshop-registrations'] });
-        toast.success('¡Inscripción confirmada!');
+        toast.success(t('workshops.enrollConfirmed'));
         return;
       }
       const { initPoint } = await paymentsService.createPreference({ workshopId: workshop.id });
@@ -88,13 +90,13 @@ export default function WorkshopDetail() {
     } catch (err: unknown) {
       const error = err as { status?: number; message?: string };
       if (error.message === 'cupo_agotado') {
-        toast.error('Lo sentimos, el cupo ya está agotado.');
+        toast.error(t('workshops.soldOutSorry'));
       } else if (error.status === 503 && error.message === 'mercadopago_not_connected') {
-        toast.error('La docente está actualizando su forma de cobro. Volvé a intentar en unos minutos.');
+        toast.error(t('workshops.paymentUpdating'));
       } else if (error.message === 'already_registered') {
-        toast.error('Ya estás inscripto/a en este taller.');
+        toast.error(t('workshops.alreadyRegistered'));
       } else {
-        toast.error('Error al iniciar la inscripción. Intentá de nuevo.');
+        toast.error(t('workshops.enrollError'));
       }
     } finally {
       setBusy(false);
@@ -119,8 +121,8 @@ export default function WorkshopDetail() {
   if (!workshop) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-        <h1 className="font-display text-2xl text-ink">Taller no encontrado</h1>
-        <Link to="/talleres" className="text-chocolate mt-4 inline-block">Volver a talleres</Link>
+        <h1 className="font-display text-2xl text-ink">{t('workshops.notFound')}</h1>
+        <Link to="/talleres" className="text-chocolate mt-4 inline-block">{t('workshops.backToWorkshops')}</Link>
       </div>
     );
   }
@@ -153,7 +155,7 @@ export default function WorkshopDetail() {
           <div className="grid lg:grid-cols-3 gap-10">
             <div className="lg:col-span-2">
               <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">
-                Taller {workshop.modality === 'online' ? 'Online' : 'Presencial'}
+                {t('workshops.workshopLabel', { modality: t(`common.modality.${workshop.modality}`, workshop.modality) })}
               </span>
               <h1 className="font-display text-3xl md:text-4xl font-bold text-ink mt-2 mb-4 text-balance">
                 {workshop.title}
@@ -162,11 +164,11 @@ export default function WorkshopDetail() {
 
               <div className="flex flex-wrap items-center gap-4 text-sm text-ink-light">
                 <span className="flex items-center gap-1.5"><CalendarDays className="w-4 h-4" />{formatDate(workshop.scheduledAt)}</span>
-                <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" />{workshop.durationMinutes} min</span>
+                <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" />{t('workshops.minutes', { count: workshop.durationMinutes })}</span>
                 {seatsLeft != null && (
                   <span className="flex items-center gap-1.5">
                     <Users className="w-4 h-4" />
-                    {seatsLeft > 0 ? `${seatsLeft} cupos disponibles` : 'Cupo agotado'}
+                    {seatsLeft > 0 ? t('workshops.seatsAvailable', { count: seatsLeft }) : t('workshops.soldOutSeats')}
                   </span>
                 )}
               </div>
@@ -202,7 +204,7 @@ export default function WorkshopDetail() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 justify-center py-3 px-4 rounded-xl bg-success-light border border-success/20">
                     <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
-                    <span className="text-sm font-semibold text-success">Ya estás inscripto/a</span>
+                    <span className="text-sm font-semibold text-success">{t('workshops.alreadyRegisteredTitle')}</span>
                   </div>
 
                   {access ? (
@@ -210,7 +212,7 @@ export default function WorkshopDetail() {
                       <div className="rounded-xl border border-chocolate-100/30 p-4 bg-cream/40">
                         <p className="text-xs font-semibold text-ink mb-2 flex items-center gap-1.5">
                           {workshop.modality === 'online' ? <Video className="w-4 h-4 text-chocolate" /> : <MapPin className="w-4 h-4 text-chocolate" />}
-                          {workshop.modality === 'online' ? 'Enlace de la sala' : 'Dirección'}
+                          {workshop.modality === 'online' ? t('workshops.roomLink') : t('workshops.address')}
                         </p>
                         {workshop.modality === 'online' && access.meetingUrl ? (
                           <a
@@ -219,7 +221,7 @@ export default function WorkshopDetail() {
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-sm font-medium text-chocolate hover:underline break-all"
                           >
-                            Abrir sala
+                            {t('workshops.openRoom')}
                             <ArrowRight className="w-3.5 h-3.5" />
                           </a>
                         ) : (
@@ -230,9 +232,9 @@ export default function WorkshopDetail() {
                       <div className="flex items-start gap-2 p-3 rounded-xl bg-gold/10 border border-gold/20">
                         <AlertTriangle className="w-4 h-4 text-gold shrink-0 mt-0.5" />
                         <div className="text-xs text-ink-light">
-                          <p className="font-semibold text-ink mb-1">Acceso pendiente</p>
+                          <p className="font-semibold text-ink mb-1">{t('workshops.accessPending')}</p>
                           <p className="mb-2">
-                            Para ingresar al taller, necesitás completar primero estos cursos:
+                            {t('workshops.accessPendingHint')}
                           </p>
                           <ul className="list-disc list-inside space-y-0.5">
                             {access.missing.map(m => (
@@ -255,11 +257,11 @@ export default function WorkshopDetail() {
                     disabled={busy || soldOut}
                     className="btn-primary btn-lg btn-full rounded-xl disabled:opacity-60"
                   >
-                    {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : soldOut ? 'Cupo agotado' : 'Inscribirme ahora'}
+                    {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : soldOut ? t('workshops.soldOutSeats') : t('workshops.enrollNow')}
                   </button>
                   {prereqCourses.length > 0 && (
                     <p className="mt-3 text-xs text-ink-light">
-                      Vas a poder inscribirte ahora. El acceso al taller se habilitará cuando completes los cursos correlativos.
+                      {t('workshops.enrollNowPrereqHint')}
                     </p>
                   )}
                 </>
@@ -267,7 +269,7 @@ export default function WorkshopDetail() {
 
               <div className="mt-4 flex items-start gap-2 text-xs text-ink-light">
                 <ShieldCheck className="w-4 h-4 text-success shrink-0 mt-0.5" />
-                <span>Tu inscripción se confirma automáticamente al acreditarse el pago.</span>
+                <span>{t('workshops.paymentAutoConfirm')}</span>
               </div>
             </div>
           </div>
@@ -279,9 +281,9 @@ export default function WorkshopDetail() {
           {/* Prereq courses */}
           {prereqCourses.length > 0 && (
             <div>
-              <h2 className="font-display text-2xl font-bold text-ink mb-2 gold-underline">Cursos correlativos requeridos</h2>
+              <h2 className="font-display text-2xl font-bold text-ink mb-2 gold-underline">{t('workshops.requiredCourses')}</h2>
               <p className="text-sm text-ink-light mb-4">
-                Para acceder al taller en vivo, deberás completar estos cursos previamente.
+                {t('workshops.requiredCoursesHint')}
               </p>
               <ul className="space-y-2">
                 {prereqCourses.map(c => {
@@ -300,7 +302,7 @@ export default function WorkshopDetail() {
                       <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
                         completed ? 'text-success bg-success/10' : 'text-ink-light bg-cream-dark'
                       }`}>
-                        {completed ? 'Completado' : 'Pendiente'}
+                        {completed ? t('workshops.completed') : t('workshops.pendingLabel')}
                       </span>
                     </li>
                   );
@@ -312,7 +314,7 @@ export default function WorkshopDetail() {
           {/* Free-text prereqs */}
           {workshop.prerequisitesText.length > 0 && (
             <div>
-              <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">Otros prerrequisitos</h2>
+              <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">{t('workshops.otherPrereqs')}</h2>
               <ul className="space-y-2">
                 {workshop.prerequisitesText.map((p, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-ink-light">
@@ -328,7 +330,7 @@ export default function WorkshopDetail() {
         <aside className="space-y-6">
           {/* Modality info */}
           <div className="bg-parchment rounded-xl p-5 border border-chocolate-100/20 shadow-warm">
-            <h3 className="font-display text-base font-bold text-ink mb-3">Detalles del encuentro</h3>
+            <h3 className="font-display text-base font-bold text-ink mb-3">{t('workshops.meetingDetails')}</h3>
             <ul className="space-y-3 text-sm">
               <li className="flex items-start gap-2">
                 <CalendarDays className="w-4 h-4 text-chocolate shrink-0 mt-0.5" />
@@ -336,7 +338,7 @@ export default function WorkshopDetail() {
               </li>
               <li className="flex items-start gap-2">
                 <Clock className="w-4 h-4 text-chocolate shrink-0 mt-0.5" />
-                <span className="text-ink-light">{workshop.durationMinutes} minutos</span>
+                <span className="text-ink-light">{t('workshops.minutesLong', { count: workshop.durationMinutes })}</span>
               </li>
               <li className="flex items-start gap-2">
                 {workshop.modality === 'online' ? (
@@ -345,13 +347,13 @@ export default function WorkshopDetail() {
                   <MapPin className="w-4 h-4 text-chocolate shrink-0 mt-0.5" />
                 )}
                 <span className="text-ink-light">
-                  {workshop.modality === 'online' ? 'Encuentro online (sala virtual)' : 'Encuentro presencial'}
+                  {workshop.modality === 'online' ? t('workshops.onlineMeeting') : t('workshops.inPersonMeeting')}
                 </span>
               </li>
               {workshop.capacity != null && (
                 <li className="flex items-start gap-2">
                   <Users className="w-4 h-4 text-chocolate shrink-0 mt-0.5" />
-                  <span className="text-ink-light">{workshop.capacity} lugares en total</span>
+                  <span className="text-ink-light">{t('workshops.totalSeats', { count: workshop.capacity })}</span>
                 </li>
               )}
             </ul>
@@ -362,7 +364,7 @@ export default function WorkshopDetail() {
             className="inline-flex items-center gap-1 text-sm text-chocolate font-medium hover:text-chocolate-dark transition-colors"
           >
             <ArrowRight className="w-3.5 h-3.5 rotate-180" />
-            Volver a talleres
+            {t('workshops.backToWorkshops')}
           </Link>
         </aside>
       </div>

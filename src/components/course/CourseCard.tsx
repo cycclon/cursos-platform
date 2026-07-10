@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Clock, Users, BookOpen } from 'lucide-react';
 import type { Course } from '@/types';
 import { formatPrice } from '@/utils/format';
@@ -10,6 +11,7 @@ interface CourseCardProps {
 }
 
 export default function CourseCard({ course }: CourseCardProps) {
+  const { t } = useTranslation();
   return (
     <Link
       to={`/cursos/${course.slug}`}
@@ -46,7 +48,7 @@ export default function CourseCard({ course }: CourseCardProps) {
           </span>
           <span className="flex items-center gap-1">
             <BookOpen className="w-3.5 h-3.5" />
-            {course.modules?.length ?? 0} módulos
+            {course.modules?.length ?? 0} {t('courseCard.modules')}
           </span>
           <span className="flex items-center gap-1">
             <Users className="w-3.5 h-3.5" />

@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { User } from '@/types';
+import type { AppLanguage, User } from '@/types';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -7,11 +7,13 @@ export const authService = {
   getMe: () => api.get<User>('/auth/me'),
   logout: () => api.post<void>('/auth/logout'),
   getGoogleLoginUrl: () => `${API_BASE}/auth/google`,
-  register: (data: { name: string; email: string; password: string }) =>
+  register: (data: { name: string; email: string; password: string; language?: AppLanguage }) =>
     api.post<{ status: 'verification_sent'; email: string; message: string }>(
       '/auth/register',
       data,
     ),
   login: (data: { email: string; password: string; rememberMe?: boolean }) =>
     api.post<User>('/auth/login', data),
+  // Currently only the language preference is user-writable.
+  updateMe: (data: { language: AppLanguage }) => api.patch<User>('/auth/me', data),
 };

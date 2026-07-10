@@ -36,8 +36,8 @@ export const uploadsService = {
     if (file.type && file.type !== 'video/mp4') {
       throw new Error('Solo se permiten archivos MP4.');
     }
-    if (file.size > 500 * 1024 * 1024) {
-      throw new Error('El video supera los 500 MB.');
+    if (file.size > 1.5 * 1024 * 1024 * 1024) {
+      throw new Error('El video supera los 1,5 GB.');
     }
 
     const { uploadUrl, publicUrl } = await api.post<VideoPresignResponse>(
@@ -61,5 +61,12 @@ export const uploadsService = {
     const formData = new FormData();
     formData.append('file', file);
     return api.upload<{ url: string; originalName: string }>('/upload/material', formData, onProgress);
+  },
+
+  // .vtt or .srt (the backend converts srt → WebVTT and stores text/vtt).
+  uploadSubtitle: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.upload<{ url: string; key: string }>('/upload/subtitle', formData);
   },
 };

@@ -3,11 +3,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, Edit3, Trash2, HelpCircle, X, Check, GripVertical, MessageCircle,
 } from 'lucide-react';
+import EnglishSection from '@/components/teacher/EnglishSection';
+import { useAutoTranslate } from '@/hooks/useAutoTranslate';
+import { pruneEn } from '@/utils/translations';
 import { useToast } from '@/context/ToastContext';
 import { faqsService } from '@/services/faqs';
 import type { FAQ } from '@/types';
 
-const emptyForm = { question: '', answer: '' };
+const emptyForm = { question: '', answer: '', enQuestion: '', enAnswer: '' };
 
 export default function FaqManager() {
   const queryClient = useQueryClient();
@@ -30,7 +33,12 @@ export default function FaqManager() {
 
   const handleEdit = (faq: FAQ) => {
     setEditingFaq(faq);
-    setFormData({ question: faq.question, answer: faq.answer });
+    setFormData({
+      question: faq.question,
+      answer: faq.answer,
+      enQuestion: faq.translations?.en?.question ?? '',
+      enAnswer: faq.translations?.en?.answer ?? '',
+    });
     setIsEditing(true);
   };
 
@@ -44,18 +52,48 @@ export default function FaqManager() {
     }
   };
 
+  const { translating, runTranslate } = useAutoTranslate();
+
+  const handleAutoTranslate = async () => {
+    const slots: { text: string; apply: (v: string) => void }[] = [];
+    const draft = { enQuestion: formData.enQuestion, enAnswer: formData.enAnswer };
+    if (formData.question.trim() && !draft.enQuestion.trim()) {
+      slots.push({ text: formData.question, apply: v => { draft.enQuestion = v; } });
+    }
+    if (formData.answer.trim() && !draft.enAnswer.trim()) {
+      slots.push({ text: formData.answer, apply: v => { draft.enAnswer = v; } });
+    }
+    if (slots.length === 0) {
+      toast.success('No hay campos en inglés pendientes de completar.');
+      return;
+    }
+    const translations = await runTranslate(slots.map(s => s.text), 'Pregunta frecuente de una academia de litigación');
+    if (!translations) return;
+    slots.forEach((s, i) => s.apply(translations[i]));
+    setFormData(prev => ({ ...prev, ...draft }));
+    toast.success('Traducción lista. Revisá antes de guardar.');
+  };
+
   const handleSave = async () => {
     if (!formData.question.trim() || !formData.answer.trim()) {
       toast.error('Completá todos los campos.');
       return;
     }
 
+    const payload = {
+      question: formData.question,
+      answer: formData.answer,
+      translations: {
+        en: pruneEn({ question: formData.enQuestion, answer: formData.enAnswer }),
+      },
+    };
+
     try {
       if (editingFaq) {
-        await faqsService.updateFaq(editingFaq.id, formData);
+        await faqsService.updateFaq(editingFaq.id, payload);
         toast.success('Pregunta actualizada.');
       } else {
-        await faqsService.createFaq(formData);
+        await faqsService.createFaq(payload);
         toast.success('Pregunta creada.');
       }
       queryClient.invalidateQueries({ queryKey: ['faqs'] });
@@ -125,6 +163,28 @@ export default function FaqManager() {
               className="w-full px-4 py-2.5 rounded-xl border border-chocolate-100/40 bg-parchment text-sm text-ink placeholder:text-ink-light/60 focus:outline-none focus:border-chocolate/40 focus:ring-2 focus:ring-chocolate/10 transition-all resize-none"
             />
           </div>
+
+          <EnglishSection onAutoTranslate={handleAutoTranslate} translating={translating} defaultOpen={!!formData.enQuestion}>
+            <div>
+              <label className="block text-sm font-medium text-ink mb-1.5">Pregunta (EN)</label>
+              <input
+                type="text"
+                value={formData.enQuestion}
+                onChange={e => setFormData({ ...formData, enQuestion: e.target.value })}
+                placeholder={formData.question || 'Question in English'}
+                className="w-full px-4 py-2.5 rounded-xl border border-chocolate-100/40 bg-parchment text-sm text-ink placeholder:text-ink-light/60 focus:outline-none focus:border-chocolate/40 focus:ring-2 focus:ring-chocolate/10 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ink mb-1.5">Respuesta (EN)</label>
+              <textarea
+                value={formData.enAnswer}
+                onChange={e => setFormData({ ...formData, enAnswer: e.target.value })}
+                rows={4}
+                className="w-full px-4 py-2.5 rounded-xl border border-chocolate-100/40 bg-parchment text-sm text-ink placeholder:text-ink-light/60 focus:outline-none focus:border-chocolate/40 focus:ring-2 focus:ring-chocolate/10 transition-all resize-none"
+              />
+            </div>
+          </EnglishSection>
 
           <div className="flex gap-3 pt-4 border-t border-chocolate-100/20">
             <button

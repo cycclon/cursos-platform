@@ -13,9 +13,12 @@ import { ProgressBar, Avatar, StatCard } from '@/components/progress/visuals';
 import { toneFor } from '@/components/progress/tone';
 import ReminderComposeModal from '@/components/reminders/ReminderComposeModal';
 import WorkshopBulkReminderModal from '@/components/reminders/WorkshopBulkReminderModal';
+import EnglishSection from '@/components/teacher/EnglishSection';
+import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 import { formatPrice } from '@/utils/format';
 import { generateSlug } from '@/utils/slug';
 import { AVAILABILITY_OPTIONS } from '@/utils/availability';
+import { pruneEn } from '@/utils/translations';
 import { useToast } from '@/context/ToastContext';
 import type {
   Workshop, WorkshopModality, WorkshopRosterEntry, PrereqProgress, AttendanceStatus,
@@ -43,7 +46,10 @@ type WorkshopFormState = {
   prerequisitesText: string[];
   availability: string;
   featured: boolean;
+  translations: NonNullable<Workshop['translations']>;
 };
+
+type WorkshopEn = NonNullable<NonNullable<Workshop['translations']>['en']>;
 
 const emptyForm: WorkshopFormState = {
   title: '',
@@ -64,6 +70,7 @@ const emptyForm: WorkshopFormState = {
   prerequisitesText: [],
   availability: 'Disponible',
   featured: false,
+  translations: { en: {} },
 };
 
 function toLocalDatetimeInput(iso: string): string {
@@ -134,6 +141,7 @@ export default function WorkshopManager() {
       prerequisitesText: workshop.prerequisitesText ?? [],
       availability: workshop.availability,
       featured: workshop.featured,
+      translations: { en: { ...(workshop.translations?.en ?? {}) } },
     });
     setIsEditing(true);
   };
@@ -182,6 +190,55 @@ export default function WorkshopManager() {
       ...prev,
       prerequisitesText: prev.prerequisitesText.filter((_, i) => i !== idx),
     }));
+  };
+
+  /* ── English translation ─────────────────────────── */
+
+  const { translating, runTranslate } = useAutoTranslate();
+
+  const setWorkshopEn = (field: keyof WorkshopEn, value: string | string[]) => {
+    setFormData(prev => ({
+      ...prev,
+      translations: { en: { ...(prev.translations.en ?? {}), [field]: value } },
+    }));
+  };
+
+  const handleAutoTranslate = async () => {
+    const draft: WorkshopEn = { ...(formData.translations.en ?? {}) };
+    const slots: { text: string; apply: (v: string) => void }[] = [];
+
+    const scalarFields: { key: keyof WorkshopEn; value: string }[] = [
+      { key: 'title', value: formData.title },
+      { key: 'summary', value: formData.summary },
+      { key: 'description', value: formData.description },
+      { key: 'category', value: formData.category },
+      { key: 'location', value: formData.modality === 'presencial' ? formData.location : '' },
+    ];
+    for (const f of scalarFields) {
+      if (f.value.trim() && !((draft[f.key] as string | undefined) ?? '').trim()) {
+        slots.push({ text: f.value, apply: v => { (draft[f.key] as string) = v; } });
+      }
+    }
+    const canonicalPrereqs = formData.prerequisitesText.map(s => s.trim()).filter(Boolean);
+    if (canonicalPrereqs.length > 0 && (draft.prerequisitesText ?? []).filter(s => s.trim()).length === 0) {
+      const acc: string[] = new Array(canonicalPrereqs.length).fill('');
+      canonicalPrereqs.forEach((item, idx) =>
+        slots.push({ text: item, apply: v => { acc[idx] = v; draft.prerequisitesText = acc; } }),
+      );
+    }
+
+    if (slots.length === 0) {
+      toast.success('No hay campos en inglés pendientes de completar.');
+      return;
+    }
+    const translations = await runTranslate(
+      slots.map(s => s.text),
+      'Ficha pública de un taller de litigación en vivo',
+    );
+    if (!translations) return;
+    slots.forEach((s, i) => s.apply(translations[i]));
+    setFormData(prev => ({ ...prev, translations: { en: draft } }));
+    toast.success(`${slots.length} campo${slots.length !== 1 ? 's' : ''} traducido${slots.length !== 1 ? 's' : ''}. Revisá antes de guardar.`);
   };
 
   const discountPercentage =
@@ -236,6 +293,7 @@ export default function WorkshopManager() {
       prerequisitesText: formData.prerequisitesText,
       availability: formData.availability,
       featured: formData.featured,
+      translations: { en: pruneEn(formData.translations.en) },
     };
 
     try {
@@ -619,6 +677,74 @@ export default function WorkshopManager() {
               </label>
             </div>
           </div>
+
+          {/* Traducción al inglés */}
+          <EnglishSection onAutoTranslate={handleAutoTranslate} translating={translating} defaultOpen={!!formData.translations.en?.title}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-ink mb-1.5">Título (EN)</label>
+                <input
+                  type="text"
+                  value={formData.translations.en?.title ?? ''}
+                  onChange={e => setWorkshopEn('title', e.target.value)}
+                  placeholder={formData.title || 'Workshop title'}
+                  className={INPUT}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-ink mb-1.5">Categoría (EN)</label>
+                <input
+                  type="text"
+                  value={formData.translations.en?.category ?? ''}
+                  onChange={e => setWorkshopEn('category', e.target.value)}
+                  placeholder={formData.category || 'Category'}
+                  className={INPUT}
+                />
+              </div>
+              {formData.modality === 'presencial' && (
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-1.5">Dirección (EN)</label>
+                  <input
+                    type="text"
+                    value={formData.translations.en?.location ?? ''}
+                    onChange={e => setWorkshopEn('location', e.target.value)}
+                    placeholder={formData.location || 'Venue address'}
+                    className={INPUT}
+                  />
+                </div>
+              )}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-ink mb-1.5">Resumen (EN)</label>
+                <textarea
+                  value={formData.translations.en?.summary ?? ''}
+                  onChange={e => setWorkshopEn('summary', e.target.value)}
+                  rows={2}
+                  className={`${INPUT} resize-none`}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-ink mb-1.5">Descripción (EN)</label>
+                <textarea
+                  value={formData.translations.en?.description ?? ''}
+                  onChange={e => setWorkshopEn('description', e.target.value)}
+                  rows={4}
+                  className={`${INPUT} resize-y`}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-ink mb-1.5">
+                  Requisitos (EN)
+                  <span className="text-xs text-ink-light font-normal ml-1">— uno por línea</span>
+                </label>
+                <textarea
+                  value={(formData.translations.en?.prerequisitesText ?? []).join('\n')}
+                  onChange={e => setWorkshopEn('prerequisitesText', e.target.value.split('\n'))}
+                  rows={3}
+                  className={`${INPUT} resize-y`}
+                />
+              </div>
+            </div>
+          </EnglishSection>
 
           {/* Actions */}
           <div className="flex gap-3 pt-4 border-t border-chocolate-100/20">

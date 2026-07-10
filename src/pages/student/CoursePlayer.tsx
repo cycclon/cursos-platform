@@ -3,11 +3,13 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Play, CheckCircle2, Lock, FileText, Download,
-  ChevronLeft, BookOpen, ArrowRight, ChevronRight,
+  ChevronLeft, BookOpen, ArrowRight, ChevronRight, Link2, Layers,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { coursesService } from '@/services/courses';
 import { enrollmentsService } from '@/services/enrollments';
 import VideoPlayer from '@/components/ui/VideoPlayer';
+import FlashcardDeck from '@/components/course/FlashcardDeck';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { formatDuration } from '@/utils/video';
@@ -41,6 +43,7 @@ function getModuleProgressEntry(
 
 export default function CoursePlayer() {
   const { id } = useParams<{ id: string }>();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const toast = useToast();
   const { user, role } = useAuth();
@@ -83,7 +86,7 @@ export default function CoursePlayer() {
     },
     onError: (error) => {
       console.error('[CoursePlayer] Save progress error:', error);
-      toast.error('Error al guardar el progreso del video.');
+      toast.error(t('coursePlayer.progressSaveError'));
     },
     retry: false,
   });
@@ -95,9 +98,9 @@ export default function CoursePlayer() {
       enrollmentsService.completeModule(vars.courseId, vars.moduleId),
     onSuccess: () => {
       invalidateEnrollments();
-      toast.success('¡Módulo completado!');
+      toast.success(t('coursePlayer.moduleCompleted'));
     },
-    onError: () => toast.error('No se pudo marcar el módulo como completado.'),
+    onError: () => toast.error(t('coursePlayer.moduleCompleteError')),
     retry: false,
   });
 
@@ -256,7 +259,7 @@ export default function CoursePlayer() {
       // Last video — force refresh to pick up completion status
       lastInvalidateRef.current = 0; // reset debounce
       queryClient.invalidateQueries({ queryKey: ['enrollments'] });
-      toast.success('¡Módulo completado!');
+      toast.success(t('coursePlayer.moduleCompleted'));
     }
   }, [activeModule, activeModuleId, activeVideoIndex, moduleVideos, course, enrollment, queryClient, toast, seedLiveProgress]);
 
@@ -376,7 +379,7 @@ export default function CoursePlayer() {
             <div>
               <h1 className="font-display text-lg font-bold text-ink">{course.title}</h1>
               <p className="text-xs text-ink-light">
-                {enrollment ? `${enrollment.progress}% completado` : 'No inscripto'}
+                {enrollment ? t('coursePlayer.percentCompleted', { percent: enrollment.progress }) : t('coursePlayer.notEnrolled')}
               </p>
             </div>
           </div>
@@ -385,7 +388,7 @@ export default function CoursePlayer() {
               to={`/examen/${course.id}`}
               className="inline-flex items-center gap-1.5 btn-primary btn-sm rounded-lg"
             >
-              Rendir examen
+              {t('coursePlayer.takeExam')}
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           )}
@@ -402,6 +405,7 @@ export default function CoursePlayer() {
                 key={`${activeModuleId}-${activeVideo.id}`}
                 url={activeVideo.url}
                 videoId={activeVideo.id}
+                subtitles={activeVideo.subtitles}
                 initialPosition={videoProgress?.lastPosition ?? 0}
                 maxAllowedPosition={videoProgress?.maxReachedSeconds ?? 0}
                 initialWatchedSeconds={videoProgress?.watchedSeconds ?? 0}
@@ -412,15 +416,15 @@ export default function CoursePlayer() {
               <div className="w-full h-full flex items-center justify-center bg-ink/90">
                 <div className="text-center text-cream">
                   <Play className="w-12 h-12 text-cream/30 mx-auto mb-3" />
-                  <p className="text-cream-dark/60">Este módulo no tiene videos</p>
+                  <p className="text-cream-dark/60">{t('coursePlayer.noVideos')}</p>
                 </div>
               </div>
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-ink/80">
                 <div className="text-center text-cream">
                   <Lock className="w-12 h-12 text-cream/30 mx-auto mb-3" />
-                  <p className="font-display text-lg">Contenido bloqueado</p>
-                  <p className="text-sm text-cream-dark/60 mt-1">Inscribite para acceder a este módulo</p>
+                  <p className="font-display text-lg">{t('coursePlayer.lockedTitle')}</p>
+                  <p className="text-sm text-cream-dark/60 mt-1">{t('coursePlayer.lockedBody')}</p>
                 </div>
               </div>
             )}
@@ -431,7 +435,7 @@ export default function CoursePlayer() {
             <div className="mb-4">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs text-ink-light">
-                  Progreso del video: {liveVideoPercent}%
+                  {t('coursePlayer.videoProgress', { percent: liveVideoPercent })}
                   {liveProgress && liveProgress.duration > 0 && (
                     <> · {formatDuration(liveProgress.currentPosition)} / {formatDuration(liveProgress.duration)}</>
                   )}
@@ -439,7 +443,7 @@ export default function CoursePlayer() {
                 {liveVideoPercent >= 95 && (
                   <span className="text-xs text-success font-medium flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3" />
-                    Completado
+                    {t('coursePlayer.completed')}
                   </span>
                 )}
               </div>
@@ -463,9 +467,9 @@ export default function CoursePlayer() {
               <div className="px-4 py-3 border-b border-chocolate-100/15">
                 <h3 className="text-sm font-semibold text-ink flex items-center gap-2">
                   <Play className="w-4 h-4 text-gold" />
-                  Videos del módulo
+                  {t('coursePlayer.moduleVideos')}
                   <span className="text-xs text-ink-light font-normal">
-                    ({activeVideoIndex + 1} de {moduleVideos.length})
+                    {t('coursePlayer.ofCount', { current: activeVideoIndex + 1, total: moduleVideos.length })}
                   </span>
                 </h3>
               </div>
@@ -498,7 +502,7 @@ export default function CoursePlayer() {
                         )}
                       </span>
                       <span className={`flex-1 truncate ${isActive ? 'text-chocolate font-medium' : 'text-ink'}`}>
-                        {video.title || `Video ${idx + 1}`}
+                        {video.title || t('coursePlayer.videoFallback', { number: idx + 1 })}
                       </span>
                       {video.duration > 0 && (
                         <span className="text-xs text-ink-light shrink-0">
@@ -540,7 +544,7 @@ export default function CoursePlayer() {
             <div className="bg-parchment rounded-xl p-6 border border-chocolate-100/20">
               <h3 className="font-display text-lg font-semibold text-ink mb-4 flex items-center gap-2">
                 <FileText className="w-5 h-5 text-gold" />
-                Material descargable
+                {t('coursePlayer.downloadableMaterial')}
               </h3>
               <div className="space-y-2">
                 {activeModule.materials.map((mat, idx) => (
@@ -555,7 +559,7 @@ export default function CoursePlayer() {
                     <button
                       onClick={() => handleDownloadMaterial(activeModule.id, idx, mat.name)}
                       disabled={!mat.fileUrl}
-                      title={mat.fileUrl ? 'Descargar' : 'Archivo aún no disponible'}
+                      title={mat.fileUrl ? t('coursePlayer.download') : t('coursePlayer.fileNotAvailable')}
                       className="p-2 text-chocolate hover:text-chocolate-dark transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Download className="w-4 h-4" />
@@ -566,19 +570,57 @@ export default function CoursePlayer() {
             </div>
           )}
 
+          {/* External resource links */}
+          {activeModule && (activeModule.links ?? []).length > 0 && (
+            <div className="bg-parchment rounded-xl p-6 border border-chocolate-100/20 mt-6">
+              <h3 className="font-display text-lg font-semibold text-ink mb-4 flex items-center gap-2">
+                <Link2 className="w-5 h-5 text-gold" />
+                {t('coursePlayer.externalResources')}
+              </h3>
+              <div className="space-y-2">
+                {(activeModule.links ?? []).map((link, idx) => (
+                  <a
+                    key={link.id ?? idx}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={link.description || link.url}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-cream-dark/50 hover:bg-cream-dark transition-colors group"
+                  >
+                    <Link2 className="w-4 h-4 text-chocolate shrink-0" />
+                    <span className="text-sm text-chocolate group-hover:underline">{link.title}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Flashcards — optional study deck */}
+          {activeModule && (activeModule.flashcards ?? []).length > 0 && (
+            <div className="bg-parchment rounded-xl p-6 border border-chocolate-100/20 mt-6">
+              <h3 className="font-display text-lg font-semibold text-ink mb-1 flex items-center gap-2">
+                <Layers className="w-5 h-5 text-gold" />
+                {t('coursePlayer.studyCards')}
+              </h3>
+              <p className="text-sm text-ink-light mb-4">
+                {t('coursePlayer.studyCardsHint')}
+              </p>
+              <FlashcardDeck cards={activeModule.flashcards ?? []} />
+            </div>
+          )}
+
           {/* Video-less module: manual completion */}
           {activeModule && moduleVideos.length === 0 && (
             isCompleted(activeModule.id) ? (
               <div className="mt-6 bg-success-light border border-success/20 rounded-xl p-5 flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
-                <p className="text-sm font-medium text-success">Completaste este módulo. ¡Bien hecho!</p>
+                <p className="text-sm font-medium text-success">{t('coursePlayer.completedModule')}</p>
               </div>
             ) : enrollment ? (
               <div className="mt-6 bg-parchment rounded-xl p-6 border border-chocolate-100/20">
-                <h3 className="font-display text-lg font-semibold text-ink mb-1">¿Terminaste este módulo?</h3>
+                <h3 className="font-display text-lg font-semibold text-ink mb-1">{t('coursePlayer.finishedModuleQ')}</h3>
                 <p className="text-sm text-ink-light mb-4">
-                  Este módulo no tiene video. Cuando hayas revisado el material, marcalo como completado
-                  para reflejar tu avance en el curso.
+                  {t('coursePlayer.finishedModuleHint')}
                 </p>
                 <button
                   onClick={() => completeModuleMutation.mutate({ courseId: course.id, moduleId: activeModule.id })}
@@ -586,14 +628,13 @@ export default function CoursePlayer() {
                   className="btn-primary btn-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  {completeModuleMutation.isPending ? 'Guardando…' : 'Marcar como completado'}
+                  {completeModuleMutation.isPending ? t('coursePlayer.saving') : t('coursePlayer.markCompleted')}
                 </button>
               </div>
             ) : isOwner ? (
               <div className="mt-6 bg-chocolate-50 border border-chocolate-100/40 rounded-xl p-5">
                 <p className="text-sm text-ink-light">
-                  Vista previa: este módulo no tiene video. Los estudiantes inscriptos podrán marcarlo
-                  como completado desde aquí.
+                  {t('coursePlayer.ownerPreviewHint')}
                 </p>
               </div>
             ) : null
@@ -605,7 +646,7 @@ export default function CoursePlayer() {
           <div className="p-4">
             <h3 className="font-display text-sm font-semibold text-ink uppercase tracking-wider mb-4 flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-gold" />
-              Módulos
+              {t('coursePlayer.modules')}
             </h3>
             <div className="space-y-1">
               {course.modules.map(mod => {
@@ -640,9 +681,9 @@ export default function CoursePlayer() {
                       <div className="flex items-center gap-2">
                         <p className="text-xs text-ink-light">
                           {videos.length > 0
-                            ? `${videos.length} video${videos.length > 1 ? 's' : ''}`
-                            : 'Sin video'}
-                          {mod.isFree && ' · Gratis'}
+                            ? t('coursePlayer.videoCount', { count: videos.length })
+                            : t('coursePlayer.noVideo')}
+                          {mod.isFree && ` · ${t('coursePlayer.freeTag')}`}
                         </p>
                         {modPercent > 0 && !completed && (
                           <div className="flex items-center gap-1">
@@ -668,7 +709,7 @@ export default function CoursePlayer() {
           {enrollment && (
             <div className="p-4 mx-4 mb-4 rounded-xl bg-chocolate-50 border border-chocolate-100/30">
               <div className="flex justify-between text-xs text-ink-light mb-1.5">
-                <span>Tu progreso</span>
+                <span>{t('coursePlayer.yourProgress')}</span>
                 <span className="font-semibold">{enrollment.progress}%</span>
               </div>
               <div className="w-full h-2 rounded-full bg-chocolate-100/30">

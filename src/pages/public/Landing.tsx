@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { ArrowRight, BookOpen, Users, Award, Star, Package } from 'lucide-react';
 import { coursesService } from '@/services/courses';
 import { teacherService } from '@/services/teacher';
@@ -21,6 +22,7 @@ function getBundleWorkshops(bundle: Bundle, workshops: Workshop[]): Workshop[] {
 }
 
 export default function Landing() {
+  const { t } = useTranslation();
   const { data: courses = [] } = useQuery({
     queryKey: ['courses'],
     queryFn: coursesService.getCourses,
@@ -58,10 +60,10 @@ export default function Landing() {
   const avgRatingDisplay = avgRating > 0 ? avgRating.toFixed(1) : '—';
 
   const statsBarItems = [
-    { icon: BookOpen, value: `${courses.length}`, label: 'Cursos disponibles' },
-    ...(teacher?.showStudentCount ? [{ icon: Users, value: `+${totalStudents}`, label: 'Estudiantes' }] : []),
-    { icon: Award, value: '100%', label: 'Contenido original' },
-    ...(avgRating > 0 ? [{ icon: Star, value: avgRatingDisplay, label: 'Valoración promedio' }] : []),
+    { icon: BookOpen, value: `${courses.length}`, label: t('landing.availableCourses') },
+    ...(teacher?.showStudentCount ? [{ icon: Users, value: `+${totalStudents}`, label: t('landing.students') }] : []),
+    { icon: Award, value: '100%', label: t('landing.originalContent') },
+    ...(avgRating > 0 ? [{ icon: Star, value: avgRatingDisplay, label: t('landing.avgRating') }] : []),
   ];
 
   return (
@@ -72,28 +74,28 @@ export default function Landing() {
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="animate-fade-in-up">
               <span className="inline-block text-xs font-semibold text-gold uppercase tracking-[0.2em] mb-4">
-                Formación Jurídica de Excelencia
+                {t('landing.heroBadge')}
               </span>
               <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-ink leading-[1.1] text-balance mb-6">
-                Dominá el Derecho con quien lo{' '}
-                <span className="text-chocolate italic">ejerce y enseña</span>
+                {t('landing.heroTitleStart')}{' '}
+                <span className="text-chocolate italic">{t('landing.heroTitleAccent')}</span>
               </h1>
               <p className="text-lg text-ink-light leading-relaxed max-w-lg mb-8">
-                Cursos dictados por la Dra. Gisela Flamini, Jueza penal y capacitadora en sistema acusatorio.
+                {t('landing.heroSub')}
               </p>
               <div className="flex flex-wrap gap-4">
                 <Link
                   to="/cursos"
                   className="inline-flex items-center gap-2 btn-primary btn-lg rounded-xl"
                 >
-                  Ver Cursos
+                  {t('landing.viewCourses')}
                   <ArrowRight className="w-4 h-4" />
                 </Link>
                 <Link
                   to="/sobre-mi"
                   className="inline-flex items-center gap-2 btn-secondary btn-lg rounded-xl"
                 >
-                  Conocé a la Dra. Flamini
+                  {t('landing.meetTeacher')}
                 </Link>
               </div>
             </div>
@@ -120,7 +122,7 @@ export default function Landing() {
                       </div>
                       <div>
                         <p className="text-2xl font-bold text-ink">{avgRatingDisplay}</p>
-                        <p className="text-xs text-ink-light">Valoración promedio</p>
+                        <p className="text-xs text-ink-light">{t('landing.avgRating')}</p>
                       </div>
                     </div>
                   </div>
@@ -154,12 +156,12 @@ export default function Landing() {
         <section className="bg-section-alt">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
             <div className="text-center mb-12">
-              <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">Formación destacada</span>
+              <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">{t('landing.featuredBadge')}</span>
               <h2 className="font-display text-3xl md:text-4xl font-bold text-ink mt-2 mb-3">
-                Cursos Destacados
+                {t('landing.featuredTitle')}
               </h2>
               <p className="text-ink-light max-w-xl mx-auto">
-                Selección de cursos diseñados para potenciar tu práctica profesional con conocimiento actualizado y aplicable.
+                {t('landing.featuredSub')}
               </p>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
@@ -172,7 +174,7 @@ export default function Landing() {
                 to="/cursos"
                 className="inline-flex items-center gap-2 text-chocolate font-semibold hover:text-chocolate-dark transition-colors"
               >
-                Ver todos los cursos
+                {t('landing.viewAllCourses')}
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -185,12 +187,12 @@ export default function Landing() {
         <section className="bg-warm-gradient">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
             <div className="text-center mb-12">
-              <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">Ahorrá combinando</span>
+              <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">{t('landing.bundlesBadge')}</span>
               <h2 className="font-display text-3xl md:text-4xl font-bold text-ink mt-2 mb-3">
-                Combos Especiales
+                {t('landing.bundlesTitle')}
               </h2>
               <p className="text-ink-light max-w-xl mx-auto">
-                Combiná cursos y accedé a descuentos exclusivos diseñados para potenciar tu formación profesional.
+                {t('landing.bundlesSub')}
               </p>
             </div>
             <div className="grid md:grid-cols-2 gap-6 stagger-children">
@@ -228,7 +230,7 @@ export default function Landing() {
                       <div>
                         <div className="flex items-center gap-2 mb-2">
                           <Package className="w-4 h-4 text-gold" />
-                          <span className="text-xs font-semibold text-gold uppercase tracking-wider">{bundleCourses.length} cursos</span>
+                          <span className="text-xs font-semibold text-gold uppercase tracking-wider">{t('landing.coursesCount', { count: bundleCourses.length })}</span>
                           {bundle.discountLabel && !isSoldOut && capacityStatus.kind !== 'low' && (
                             <span className="bg-error text-cream text-xs font-bold px-2 py-0.5 rounded-full ml-auto">{bundle.discountLabel}</span>
                           )}
@@ -243,7 +245,7 @@ export default function Landing() {
                           <span className="text-xs text-ink-light line-through">{formatPrice(bundle.originalPrice)}</span>
                           <span className="block text-lg font-bold text-chocolate">{formatPrice(bundle.price)}</span>
                         </div>
-                        <span className="text-xs text-success font-semibold">Ahorrás {formatPrice(savings)}</span>
+                        <span className="text-xs text-success font-semibold">{t('landing.youSave', { amount: formatPrice(savings) })}</span>
                       </div>
                     </div>
                   </Link>
@@ -255,7 +257,7 @@ export default function Landing() {
                 to="/combos"
                 className="inline-flex items-center gap-2 text-chocolate font-semibold hover:text-chocolate-dark transition-colors"
               >
-                Ver todos los combos
+                {t('landing.viewAllBundles')}
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -268,9 +270,9 @@ export default function Landing() {
         <section className="diagonal-accent diagonal-accent-left">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
             <div className="text-center mb-12">
-              <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">Testimonios</span>
+              <span className="text-xs font-semibold text-gold uppercase tracking-[0.2em]">{t('landing.testimonialsBadge')}</span>
               <h2 className="font-display text-3xl md:text-4xl font-bold text-ink mt-2">
-                Lo que dicen nuestros alumnos
+                {t('landing.testimonialsTitle')}
               </h2>
             </div>
             <div className="grid md:grid-cols-3 gap-6 stagger-children">
@@ -299,16 +301,16 @@ export default function Landing() {
       <section className="bg-chocolate">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
           <h2 className="font-display text-3xl md:text-4xl font-bold text-cream mb-4">
-            Comenzá tu formación hoy
+            {t('landing.ctaTitle')}
           </h2>
           <p className="text-cream-dark/70 mb-8 max-w-lg mx-auto">
-            Invertí en tu carrera profesional con cursos dictados por una experta reconocida en el ámbito jurídico argentino.
+            {t('landing.ctaSub')}
           </p>
           <Link
             to="/cursos"
             className="inline-flex items-center gap-2 btn-primary-inverted btn-xl rounded-xl"
           >
-            Explorar Cursos
+            {t('landing.ctaButton')}
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

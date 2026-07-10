@@ -1,15 +1,51 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Menu, X, User, LogIn, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { bundlesService } from '@/services/bundles';
 import { workshopsService } from '@/services/workshops';
+import type { AppLanguage } from '@/types';
+
+// Compact ES|EN segmented control. Quiet by design: it's a utility, not a
+// feature — the active segment picks up the chocolate accent, nothing more.
+function LanguageToggle({ className = '' }: { className?: string }) {
+  const { language, setLanguage } = useLanguage();
+  const { t } = useTranslation();
+
+  const segment = (lang: AppLanguage, label: string) => (
+    <button
+      onClick={() => setLanguage(lang)}
+      aria-pressed={language === lang}
+      className={`px-2 py-1 text-xs font-semibold tracking-wide transition-colors ${
+        language === lang
+          ? 'bg-chocolate text-cream'
+          : 'text-ink-light hover:text-chocolate hover:bg-chocolate-50'
+      }`}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div
+      role="group"
+      aria-label={t('header.languageSelector')}
+      className={`flex items-center rounded-lg border border-chocolate-100 overflow-hidden ${className}`}
+    >
+      {segment('es', 'ES')}
+      {segment('en', 'EN')}
+    </div>
+  );
+}
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { role, isAuthenticated, user, logout } = useAuth();
+  const { t } = useTranslation();
   const toast = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -30,16 +66,16 @@ export default function Header() {
   const hasWorkshops = workshops.length > 0;
 
   const publicLinks = [
-    { to: '/', label: 'Inicio' },
-    { to: '/cursos', label: 'Cursos' },
-    ...(hasWorkshops ? [{ to: '/talleres', label: 'Talleres' }] : []),
-    ...(hasCombos ? [{ to: '/combos', label: 'Combos' }] : []),
-    { to: '/sobre-mi', label: 'Sobre Mí' },
-    { to: '/preguntas-frecuentes', label: 'FAQ' },
+    { to: '/', label: t('header.nav.home') },
+    { to: '/cursos', label: t('header.nav.courses') },
+    ...(hasWorkshops ? [{ to: '/talleres', label: t('header.nav.workshops') }] : []),
+    ...(hasCombos ? [{ to: '/combos', label: t('header.nav.bundles') }] : []),
+    { to: '/sobre-mi', label: t('header.nav.about') },
+    { to: '/preguntas-frecuentes', label: t('header.nav.faq') },
   ];
 
   const studentLinks = [
-    { to: '/mi-panel', label: 'Mi Panel' },
+    { to: '/mi-panel', label: t('header.nav.myPanel') },
   ];
 
   const teacherLinks = [
@@ -61,7 +97,7 @@ export default function Header() {
 
   const handleLogout = async () => {
     await logout();
-    toast.success('Sesión cerrada.');
+    toast.success(t('header.signedOut'));
     navigate('/');
   };
 
@@ -101,6 +137,7 @@ export default function Header() {
 
           {/* Right side */}
           <div className="flex items-center gap-3">
+            <LanguageToggle className="hidden md:flex" />
             {isAuthenticated ? (
               <div className="hidden md:flex items-center gap-3">
                 <Link
@@ -115,7 +152,7 @@ export default function Header() {
                 <button
                   onClick={handleLogout}
                   className="p-2 rounded-lg text-ink-light hover:text-chocolate hover:bg-chocolate-50 transition-colors"
-                  title="Cerrar sesión"
+                  title={t('header.signOut')}
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
@@ -126,7 +163,7 @@ export default function Header() {
                 className="hidden md:flex items-center gap-2 btn-primary btn-md rounded-lg"
               >
                 <LogIn className="w-4 h-4" />
-                Ingresar
+                {t('header.signIn')}
               </Link>
             )}
 
@@ -164,7 +201,7 @@ export default function Header() {
                 onClick={() => { setMobileOpen(false); handleLogout(); }}
                 className="block w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-ink-light hover:text-chocolate hover:bg-chocolate-50"
               >
-                Cerrar sesión
+                {t('header.signOut')}
               </button>
             ) : (
               <Link
@@ -172,9 +209,15 @@ export default function Header() {
                 onClick={() => setMobileOpen(false)}
                 className="block px-3 py-2 rounded-lg text-sm font-medium text-chocolate hover:bg-chocolate-50"
               >
-                Ingresar
+                {t('header.signIn')}
               </Link>
             )}
+            <div className="flex items-center justify-between px-3 pt-2 border-t border-chocolate-100/50 mt-2">
+              <span className="text-xs font-medium text-ink-light uppercase tracking-wide">
+                {t('header.languageSelector')}
+              </span>
+              <LanguageToggle />
+            </div>
           </nav>
         </div>
       )}
