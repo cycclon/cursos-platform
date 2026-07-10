@@ -1,10 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { teacherService } from '@/services/teacher';
+import { useLanguage } from '@/context/LanguageContext';
 import { CheckCircle2, BookOpen, Scale, GraduationCap } from 'lucide-react';
+
+const SUBTITLE_LABELS: Record<string, string> = { es: 'Español', en: 'English' };
 
 export default function About() {
   const { t } = useTranslation();
+  const { language } = useLanguage();
   const { data: teacher, isLoading } = useQuery({
     queryKey: ['teacher'],
     queryFn: teacherService.getTeacher,
@@ -110,7 +114,23 @@ export default function About() {
                     controls
                     className="w-full h-full object-cover"
                     poster=""
-                  />
+                    // Subtitle .vtt files live on the media host (cross-origin),
+                    // and <track> only loads cross-origin under CORS. Opt into
+                    // CORS mode only when tracks exist, so a subtitle-less video
+                    // can't regress on a missing CORS header.
+                    crossOrigin={teacher.videoSubtitles?.length ? 'anonymous' : undefined}
+                  >
+                    {(teacher.videoSubtitles ?? []).map((track) => (
+                      <track
+                        key={`${track.lang}-${track.url}`}
+                        kind="subtitles"
+                        src={track.url}
+                        srcLang={track.lang}
+                        label={SUBTITLE_LABELS[track.lang] ?? track.lang}
+                        default={track.lang === language}
+                      />
+                    ))}
+                  </video>
                 </div>
               </div>
             )}

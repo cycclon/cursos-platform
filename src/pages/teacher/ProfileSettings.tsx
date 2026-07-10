@@ -2,16 +2,19 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Camera, Plus, X, Loader2, Save, Video, GripVertical,
-  CheckCircle2, CreditCard, ExternalLink, Unlink, AlertCircle,
+  CheckCircle2, CreditCard, ExternalLink, Unlink, AlertCircle, Sparkles,
 } from 'lucide-react';
 import EnglishSection from '@/components/teacher/EnglishSection';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 import { teacherService } from '@/services/teacher';
 import { uploadsService } from '@/services/uploads';
+import { subtitlesService, type SubtitleJobInfo } from '@/services/subtitles';
 import { mercadoPagoService } from '@/services/mercadoPago';
 import { pruneEn } from '@/utils/translations';
+import { getVideoProvider } from '@/utils/video';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
+import type { VideoSubtitle, AppLanguage } from '@/types';
 
 const INPUT = 'w-full px-4 py-2.5 rounded-xl border border-chocolate-100/40 bg-parchment text-sm text-ink placeholder:text-ink-light/60 focus:outline-none focus:border-chocolate/40 focus:ring-2 focus:ring-chocolate/10 transition-all';
 
@@ -21,6 +24,8 @@ export default function ProfileSettings() {
   const { isMainTeacher } = useAuth();
   const photoInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const subtitleInputRef = useRef<HTMLInputElement>(null);
+  const subtitleLangRef = useRef<AppLanguage | null>(null);
 
   const { data: teacher, isLoading } = useQuery({
     queryKey: ['teacher'],
@@ -82,6 +87,7 @@ export default function ProfileSettings() {
     photoUrl: '',
     credentials: [] as string[],
     videoUrl: '',
+    videoSubtitles: [] as VideoSubtitle[],
     enTitle: '',
     enBio: '',
     enCredentials: [] as string[],
@@ -91,6 +97,8 @@ export default function ProfileSettings() {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [videoUploadProgress, setVideoUploadProgress] = useState(0);
+  const [uploadingSubtitle, setUploadingSubtitle] = useState(false);
+  const [subtitleJob, setSubtitleJob] = useState<SubtitleJobInfo | null>(null);
 
   useEffect(() => {
     if (teacher) {
@@ -100,6 +108,7 @@ export default function ProfileSettings() {
         photoUrl: teacher.photoUrl || '',
         credentials: teacher.credentials || [],
         videoUrl: teacher.videoUrl || '',
+        videoSubtitles: teacher.videoSubtitles || [],
         enTitle: teacher.translations?.en?.title ?? '',
         enBio: teacher.translations?.en?.bio ?? '',
         enCredentials: teacher.translations?.en?.credentials ?? [],
@@ -165,6 +174,84 @@ export default function ProfileSettings() {
     }
   };
 
+  /* ── Subtitle handlers (welcome video) ──────────────── */
+
+  const handlePickSubtitleFile = (lang: AppLanguage) => {
+    subtitleLangRef.current = lang;
+    subtitleInputRef.current?.click();
+  };
+
+  const handleSubtitleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const lang = subtitleLangRef.current;
+    if (!file || !lang) return;
+    setUploadingSubtitle(true);
+    try {
+      const { url } = await uploadsService.uploadSubtitle(file);
+      setFormData(prev => ({
+        ...prev,
+        videoSubtitles: [
+          ...prev.videoSubtitles.filter(s => s.lang !== lang),
+          { lang, url, source: 'manual' as const, updatedAt: new Date().toISOString() },
+        ],
+      }));
+      toast.success(`Subtítulo ${lang.toUpperCase()} cargado. Guardá los cambios para aplicarlo.`);
+    } catch {
+      toast.error('Error al subir el subtítulo (.vtt o .srt).');
+    } finally {
+      setUploadingSubtitle(false);
+      subtitleLangRef.current = null;
+      if (subtitleInputRef.current) subtitleInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveSubtitle = (lang: AppLanguage) => {
+    setFormData(prev => ({
+      ...prev,
+      videoSubtitles: prev.videoSubtitles.filter(s => s.lang !== lang),
+    }));
+  };
+
+  const handleGenerateSubtitles = async () => {
+    try {
+      const { job } = await subtitlesService.generateTeacherVideo();
+      setSubtitleJob(job);
+      toast.success('Generación de subtítulos iniciada. Puede tardar varios minutos.');
+    } catch (err) {
+      const message = err instanceof Error && err.message ? err.message : 'No se pudo iniciar la generación.';
+      toast.error(message);
+    }
+  };
+
+  // Poll the active generation job (server-side pipeline). On completion, merge
+  // ONLY the freshly generated tracks into the form — never invalidate/refetch
+  // the whole ['teacher'] query, which would reset the form effect above and
+  // discard any unsaved profile edits made while the (multi-minute) job ran.
+  useEffect(() => {
+    if (!subtitleJob || (subtitleJob.status !== 'queued' && subtitleJob.status !== 'processing')) return;
+    const interval = setInterval(async () => {
+      try {
+        const { job } = await subtitlesService.getTeacherVideoJob();
+        if (!job) return;
+        setSubtitleJob(job);
+        if (job.status === 'done') {
+          toast.success(job.warning ? `Subtítulos generados. ${job.warning}` : 'Subtítulos generados (ES y EN).');
+          try {
+            const fresh = await teacherService.getTeacher();
+            setFormData(prev => ({ ...prev, videoSubtitles: fresh.videoSubtitles || [] }));
+          } catch {
+            /* tracks are already saved server-side; they'll load on next open */
+          }
+        } else if (job.status === 'failed') {
+          toast.error(`La generación de subtítulos falló: ${job.error ?? 'error desconocido'}`);
+        }
+      } catch {
+        /* transient network error — keep polling */
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [subtitleJob, toast]);
+
   const { translating, runTranslate } = useAutoTranslate();
 
   const handleAutoTranslate = async () => {
@@ -215,6 +302,8 @@ export default function ProfileSettings() {
         photoUrl: formData.photoUrl,
         credentials: cleanCredentials,
         videoUrl: formData.videoUrl || undefined,
+        // Drop orphaned subtitle tracks if the video was removed.
+        videoSubtitles: formData.videoUrl ? formData.videoSubtitles : [],
         translations: {
           en: pruneEn({
             title: formData.enTitle,
@@ -572,6 +661,91 @@ export default function ProfileSettings() {
                   </button>
                 </div>
               )}
+
+              {/* Subtítulos del video */}
+              {formData.videoUrl && (() => {
+                const isDirect = getVideoProvider(formData.videoUrl) === 'direct';
+                const unsavedVideo = formData.videoUrl !== (teacher?.videoUrl || '');
+                const jobActive = subtitleJob?.status === 'queued' || subtitleJob?.status === 'processing';
+                const generateDisabled = !isDirect || unsavedVideo || jobActive;
+                const generateTitle = !isDirect
+                  ? 'Solo disponible para videos MP4 subidos a la plataforma (no YouTube/Vimeo).'
+                  : unsavedVideo
+                    ? 'Guardá los cambios primero para generar subtítulos del video subido.'
+                    : 'Transcribe el audio y genera subtítulos en español e inglés.';
+                return (
+                  <div className="pt-3 mt-1 border-t border-chocolate-100/20">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] font-medium text-ink-light uppercase tracking-wide mr-1">Subtítulos</span>
+                      {formData.videoSubtitles.map(s => (
+                        <span
+                          key={s.lang}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-chocolate-50 text-[11px] text-chocolate font-medium"
+                          title={s.source === 'auto' ? 'Generado automáticamente' : 'Subido manualmente'}
+                        >
+                          {s.lang.toUpperCase()} · {s.source === 'auto' ? 'auto' : 'manual'}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSubtitle(s.lang)}
+                            className="text-ink-light hover:text-error transition-colors"
+                            title="Quitar subtítulo (se aplica al guardar)"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                      {formData.videoSubtitles.length === 0 && (
+                        <span className="text-[11px] text-ink-light/70 mr-1">Sin subtítulos aún</span>
+                      )}
+                      <div className="flex-1" />
+                      <button
+                        type="button"
+                        onClick={() => handlePickSubtitleFile('es')}
+                        disabled={uploadingSubtitle}
+                        className="px-2 py-0.5 text-[11px] font-medium text-chocolate bg-chocolate-50 rounded-lg hover:bg-chocolate-100/40 transition-colors disabled:opacity-50"
+                      >
+                        Subir ES
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handlePickSubtitleFile('en')}
+                        disabled={uploadingSubtitle}
+                        className="px-2 py-0.5 text-[11px] font-medium text-chocolate bg-chocolate-50 rounded-lg hover:bg-chocolate-100/40 transition-colors disabled:opacity-50"
+                      >
+                        Subir EN
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleGenerateSubtitles}
+                        disabled={generateDisabled}
+                        title={generateTitle}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium text-parchment bg-chocolate rounded-lg hover:bg-chocolate/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        Generar con IA
+                      </button>
+                    </div>
+                    {jobActive && (
+                      <p className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] text-ink-light">
+                        <Loader2 className="w-3 h-3 animate-spin text-chocolate" />
+                        {subtitleJob?.step || 'Procesando…'}
+                      </p>
+                    )}
+                    <p className="mt-1.5 text-[11px] text-ink-light/80">
+                      Formatos manuales: .vtt o .srt. Los subtítulos generados con IA se guardan solos;
+                      los subidos o quitados manualmente se aplican al guardar el perfil.
+                    </p>
+                  </div>
+                );
+              })()}
+
+              <input
+                type="file"
+                ref={subtitleInputRef}
+                onChange={handleSubtitleUpload}
+                accept=".vtt,.srt,text/vtt"
+                className="hidden"
+              />
             </div>
           </div>
 

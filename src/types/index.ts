@@ -19,6 +19,9 @@ export interface Teacher {
   photoUrl: string;
   credentials: string[];
   videoUrl?: string;
+  // ES/EN subtitle tracks for the "Sobre mí" welcome video (.vtt on the media
+  // host). Auto-generated or manually uploaded, mirroring module video subs.
+  videoSubtitles?: VideoSubtitle[];
   showStudentCount?: boolean;
   totalStudents?: number;
   translations?: { en?: { title?: string; bio?: string; credentials?: string[] } };

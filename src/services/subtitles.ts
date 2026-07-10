@@ -20,4 +20,10 @@ export const subtitlesService = {
     api.post<{ job: SubtitleJobInfo }>(`/modules/${moduleId}/videos/${videoId}/subtitles/generate`),
   getJob: (moduleId: string, videoId: string) =>
     api.get<{ job: SubtitleJobInfo | null }>(`/modules/${moduleId}/videos/${videoId}/subtitles/job`),
+
+  // Teacher "Sobre mí" welcome video — targets the requesting teacher's profile.
+  generateTeacherVideo: () =>
+    api.post<{ job: SubtitleJobInfo }>('/teacher/video/subtitles/generate'),
+  getTeacherVideoJob: () =>
+    api.get<{ job: SubtitleJobInfo | null }>('/teacher/video/subtitles/job'),
 };
