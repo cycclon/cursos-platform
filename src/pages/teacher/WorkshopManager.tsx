@@ -36,6 +36,8 @@ type WorkshopFormState = {
   imageUrl: string;
   price: number;
   discountPrice: number | undefined;
+  priceUsd: number | undefined;
+  discountPriceUsd: number | undefined;
   scheduledAt: string;
   durationMinutes: number;
   modality: WorkshopModality;
@@ -60,6 +62,8 @@ const emptyForm: WorkshopFormState = {
   imageUrl: '',
   price: 0,
   discountPrice: undefined,
+  priceUsd: undefined,
+  discountPriceUsd: undefined,
   scheduledAt: '',
   durationMinutes: 60,
   modality: 'online',
@@ -131,6 +135,8 @@ export default function WorkshopManager() {
       imageUrl: workshop.imageUrl,
       price: workshop.price,
       discountPrice: workshop.discountPrice,
+      priceUsd: workshop.priceUsd,
+      discountPriceUsd: workshop.discountPriceUsd,
       scheduledAt: toLocalDatetimeInput(workshop.scheduledAt),
       durationMinutes: workshop.durationMinutes,
       modality: workshop.modality,
@@ -282,6 +288,8 @@ export default function WorkshopManager() {
       imageUrl: formData.imageUrl,
       price: formData.price,
       discountPrice: formData.discountPrice,
+      priceUsd: formData.priceUsd,
+      discountPriceUsd: formData.discountPriceUsd,
       discountLabel,
       scheduledAt: new Date(formData.scheduledAt).toISOString(),
       durationMinutes: formData.durationMinutes,
@@ -648,6 +656,38 @@ export default function WorkshopManager() {
               {discountPercentage > 0 && (
                 <p className="mt-2 text-sm font-semibold text-success">Descuento: {discountPercentage}%</p>
               )}
+            </div>
+          </div>
+
+          {/* USD prices — international (Lemon Squeezy) lane */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-ink mb-1.5">Precio (USD)</label>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-light" />
+                <input
+                  type="number"
+                  min={0}
+                  value={formData.priceUsd ?? ''}
+                  onChange={e => setFormData({ ...formData, priceUsd: e.target.value ? Number(e.target.value) : undefined })}
+                  placeholder="Sin venta internacional"
+                  className={`${INPUT} pl-9`}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ink mb-1.5">Precio con descuento (USD)</label>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-light" />
+                <input
+                  type="number"
+                  min={0}
+                  value={formData.discountPriceUsd ?? ''}
+                  onChange={e => setFormData({ ...formData, discountPriceUsd: e.target.value ? Number(e.target.value) : undefined })}
+                  placeholder="Opcional"
+                  className={`${INPUT} pl-9`}
+                />
+              </div>
             </div>
           </div>
 

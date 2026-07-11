@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Clock, Users, BookOpen } from 'lucide-react';
 import type { Course } from '@/types';
 import { formatPrice } from '@/utils/format';
+import { itemPriceView } from '@/utils/pricing';
+import { useLanguage } from '@/context/LanguageContext';
 import StarRating from '@/components/ui/StarRating';
 import CourseImage from '@/components/ui/CourseImage';
 
@@ -12,6 +14,8 @@ interface CourseCardProps {
 
 export default function CourseCard({ course }: CourseCardProps) {
   const { t } = useTranslation();
+  const { currency } = useLanguage();
+  const pv = itemPriceView(currency, course);
   return (
     <Link
       to={`/cursos/${course.slug}`}
@@ -60,13 +64,13 @@ export default function CourseCard({ course }: CourseCardProps) {
         <div className="flex items-center justify-between pt-3 border-t border-chocolate-100/30">
           <StarRating rating={course.rating} size="sm" showValue />
           <div className="text-right">
-            {course.discountPrice ? (
+            {pv.compareAt != null ? (
               <>
-                <span className="text-xs text-ink-light line-through">{formatPrice(course.price)}</span>
-                <span className="block text-lg font-bold text-chocolate">{formatPrice(course.discountPrice)}</span>
+                <span className="text-xs text-ink-light line-through">{formatPrice(pv.compareAt, pv.currency)}</span>
+                <span className="block text-lg font-bold text-chocolate">{formatPrice(pv.amount, pv.currency)}</span>
               </>
             ) : (
-              <span className="text-lg font-bold text-chocolate">{formatPrice(course.price)}</span>
+              <span className="text-lg font-bold text-chocolate">{formatPrice(pv.amount, pv.currency)}</span>
             )}
           </div>
         </div>

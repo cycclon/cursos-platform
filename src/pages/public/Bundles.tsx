@@ -6,6 +6,8 @@ import { bundlesService } from '@/services/bundles';
 import { coursesService } from '@/services/courses';
 import { workshopsService } from '@/services/workshops';
 import { formatPrice } from '@/utils/format';
+import { bundlePriceView } from '@/utils/pricing';
+import { useLanguage } from '@/context/LanguageContext';
 import { bundleCapacityStatus } from '@/utils/capacity';
 import { bundleAvailability } from '@/utils/bundleAvailability';
 import { CapacityBadge } from '@/components/ui/CapacityBadge';
@@ -22,6 +24,7 @@ function getBundleWorkshops(bundle: Bundle, workshops: Workshop[]): Workshop[] {
 
 export default function Bundles() {
   const { t } = useTranslation();
+  const { currency } = useLanguage();
   const { data: bundles = [], isLoading: loadingBundles } = useQuery({
     queryKey: ['bundles'],
     queryFn: bundlesService.getBundles,
@@ -75,7 +78,8 @@ export default function Bundles() {
               const bundleCourses = getBundleCourses(bundle, courses);
               const bundleWorkshops = getBundleWorkshops(bundle, workshops);
               const totalModules = bundleCourses.reduce((sum, c) => sum + (c.modules?.length ?? 0), 0);
-              const savings = bundle.originalPrice - bundle.price;
+              const pv = bundlePriceView(currency, bundle);
+              const savings = pv.compareAt != null ? pv.compareAt - pv.amount : 0;
               const capacityStatus = bundleCapacityStatus(bundleWorkshops);
               const availability = bundleAvailability(bundleCourses, bundleWorkshops);
               const isUnavailable = availability.kind === 'unavailable';
@@ -147,9 +151,13 @@ export default function Bundles() {
                     {/* Price */}
                     <div className="flex items-center justify-between pt-3 border-t border-chocolate-100/30">
                       <div>
-                        <span className="text-xs text-ink-light line-through">{formatPrice(bundle.originalPrice)}</span>
-                        <span className="block text-lg font-bold text-chocolate">{formatPrice(bundle.price)}</span>
-                        <span className="text-xs text-success font-semibold">{t('bundles.youSave', { amount: formatPrice(savings) })}</span>
+                        {pv.compareAt != null && (
+                          <span className="text-xs text-ink-light line-through">{formatPrice(pv.compareAt, pv.currency)}</span>
+                        )}
+                        <span className="block text-lg font-bold text-chocolate">{formatPrice(pv.amount, pv.currency)}</span>
+                        {savings > 0 && (
+                          <span className="text-xs text-success font-semibold">{t('bundles.youSave', { amount: formatPrice(savings, pv.currency) })}</span>
+                        )}
                       </div>
                       <span className="flex items-center gap-1 text-sm font-medium text-ink-light group-hover:text-chocolate transition-colors">
                         {t('bundles.viewBundle')}

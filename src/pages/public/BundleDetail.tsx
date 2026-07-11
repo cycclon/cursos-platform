@@ -10,8 +10,10 @@ import { workshopRegistrationsService } from '@/services/workshopRegistrations';
 import { enrollmentsService } from '@/services/enrollments';
 import { paymentsService } from '@/services/payments';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { formatPrice, formatDateTime } from '@/utils/format';
+import { bundlePriceView } from '@/utils/pricing';
 import { bundleCapacityStatus } from '@/utils/capacity';
 import { bundleAvailability, bundleAvailabilityReason } from '@/utils/bundleAvailability';
 import { CapacityBadge } from '@/components/ui/CapacityBadge';
@@ -37,6 +39,7 @@ function formatWorkshopDate(iso: string): string {
 export default function BundleDetail() {
   const { slug } = useParams<{ slug: string }>();
   const { isAuthenticated } = useAuth();
+  const { currency } = useLanguage();
   const { t } = useTranslation();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -104,11 +107,16 @@ export default function BundleDetail() {
       return;
     }
 
-    // Paid bundle → Mercado Pago
+    // Paid bundle → USD lane (Lemon Squeezy) or ARS lane (Mercado Pago)
     setEnrolling(true);
     try {
-      const { initPoint } = await paymentsService.createPreference({ bundleId: bundle!.id });
-      window.location.href = initPoint;
+      if (currency === 'USD' && bundle!.priceUsd) {
+        const { checkoutUrl } = await paymentsService.createLemonCheckout({ bundleId: bundle!.id });
+        window.location.href = checkoutUrl;
+      } else {
+        const { initPoint } = await paymentsService.createPreference({ bundleId: bundle!.id });
+        window.location.href = initPoint;
+      }
     } catch (err: unknown) {
       const error = err as { status?: number; message?: string };
       if (error.status === 503 && error.message === 'mercadopago_not_connected') {
@@ -149,13 +157,15 @@ export default function BundleDetail() {
   const bundleCourses = getBundleCourses(bundle, courses);
   const bundleWorkshops = getBundleWorkshops(bundle, workshops);
   const totalModules = bundleCourses.reduce((sum, c) => sum + (c.modules?.length ?? 0), 0);
-  const savings = bundle.originalPrice - bundle.price;
+  const pv = bundlePriceView(currency, bundle);
+  const intlUnavailable = currency === 'USD' && !pv.usdAvailable;
+  const savings = pv.compareAt != null ? pv.compareAt - pv.amount : 0;
   const capacityStatus = bundleCapacityStatus(bundleWorkshops);
   const isSoldOut = capacityStatus.kind === 'sold_out';
   const availability = bundleAvailability(bundleCourses, bundleWorkshops);
   const isUnavailable = availability.kind === 'unavailable';
   const unavailabilityReason = bundleAvailabilityReason(availability, t);
-  const cantBuy = isSoldOut || isUnavailable;
+  const cantBuy = isSoldOut || isUnavailable || intlUnavailable;
 
   const enrolledCourseIds = new Set(enrollments.map(e => e.courseId));
   const enrolledInBundle = bundleCourses.filter(c => enrolledCourseIds.has(c.id));
@@ -206,10 +216,14 @@ export default function BundleDetail() {
               </div>
               <div className="mb-4">
                 <div className="flex items-baseline gap-3">
-                  <span className="font-display text-3xl font-bold text-chocolate">{formatPrice(bundle.price)}</span>
-                  <span className="text-lg text-ink-light line-through">{formatPrice(bundle.originalPrice)}</span>
+                  <span className="font-display text-3xl font-bold text-chocolate">{formatPrice(pv.amount, pv.currency)}</span>
+                  {pv.compareAt != null && (
+                    <span className="text-lg text-ink-light line-through">{formatPrice(pv.compareAt, pv.currency)}</span>
+                  )}
                 </div>
-                <p className="text-success font-semibold text-sm mt-1">{t('bundles.youSave', { amount: formatPrice(savings) })}</p>
+                {savings > 0 && (
+                  <p className="text-success font-semibold text-sm mt-1">{t('bundles.youSave', { amount: formatPrice(savings, pv.currency) })}</p>
+                )}
               </div>
 
               {allEnrolled ? (
@@ -278,6 +292,9 @@ export default function BundleDetail() {
                           ? t('bundles.bundleSoldOut')
                           : t('bundles.enrollNow')}
                   </button>
+                  {intlUnavailable && (
+                    <p className="mt-3 text-xs text-ink-light">{t('pricing.intlComingSoon')}</p>
+                  )}
                   {isUnavailable && unavailabilityReason && (
                     <div className="mt-3 flex items-start gap-2 p-3 rounded-xl bg-chocolate/5 border border-chocolate/10">
                       <CalendarClock className="w-4 h-4 text-chocolate shrink-0 mt-0.5" />
@@ -369,7 +386,7 @@ export default function BundleDetail() {
               t('bundles.downloadableAll'),
               t('bundles.modulesOfContent', { count: totalModules }),
               t('bundles.completionCertificates'),
-              t('bundles.savingsOverIndividual', { amount: formatPrice(savings) }),
+              t('bundles.savingsOverIndividual', { amount: formatPrice(savings, pv.currency) }),
             ].map((item, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-ink-light">
                 <CheckCircle2 className="w-4 h-4 text-gold shrink-0 mt-0.5" />

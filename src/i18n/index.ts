@@ -2,10 +2,17 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { es } from './es';
 import { en } from './en';
-import { applyDocumentLang, detectInitialLang, setCurrentLang } from './lang';
+import {
+  applyDocumentLang,
+  detectInitialCurrency,
+  detectInitialLang,
+  setCurrentCurrency,
+  setCurrentLang,
+} from './lang';
 
 const initialLang = detectInitialLang();
 setCurrentLang(initialLang);
+setCurrentCurrency(detectInitialCurrency(initialLang));
 applyDocumentLang(initialLang);
 
 i18n.use(initReactI18next).init({

@@ -40,6 +40,7 @@ export default function Statistics() {
     .filter((c) => c.type !== 'bundle')
     .reduce((sum, c) => sum + c.enrollments, 0);
   const totalRevenue = salesData.reduce((sum, d) => sum + d.revenue, 0);
+  const totalRevenueUsd = salesData.reduce((sum, d) => sum + (d.revenueUsd ?? 0), 0);
   const ratedCourses = courseStats.filter((c) => c.type === 'course' && c.avgRating > 0);
   const avgRating = ratedCourses.length > 0
     ? ratedCourses.reduce((sum, c) => sum + c.avgRating, 0) / ratedCourses.length
@@ -57,7 +58,7 @@ export default function Statistics() {
         {[
           { icon: Eye, label: 'Vistas totales', value: totalViews.toLocaleString(), color: 'text-chocolate bg-chocolate-50' },
           { icon: Users, label: 'Inscripciones', value: totalEnrollments.toString(), color: 'text-gold bg-gold/10' },
-          { icon: DollarSign, label: 'Ingresos totales', value: formatPrice(totalRevenue), color: 'text-success bg-success-light' },
+          { icon: DollarSign, label: 'Ingresos totales', value: totalRevenueUsd > 0 ? `${formatPrice(totalRevenue)} + ${formatPrice(totalRevenueUsd, 'USD')}` : formatPrice(totalRevenue), color: 'text-success bg-success-light' },
           { icon: Star, label: 'Valoración promedio', value: avgRating.toFixed(1), color: 'text-gold bg-gold/10' },
         ].map((stat, i) => {
           const Icon = stat.icon;

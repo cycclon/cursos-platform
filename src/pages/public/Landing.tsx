@@ -8,6 +8,8 @@ import { testimonialsService } from '@/services/testimonials';
 import { bundlesService } from '@/services/bundles';
 import { workshopsService } from '@/services/workshops';
 import { formatPrice } from '@/utils/format';
+import { bundlePriceView } from '@/utils/pricing';
+import { useLanguage } from '@/context/LanguageContext';
 import { bundleCapacityStatus } from '@/utils/capacity';
 import { CapacityBadge } from '@/components/ui/CapacityBadge';
 import CourseCard from '@/components/course/CourseCard';
@@ -23,6 +25,7 @@ function getBundleWorkshops(bundle: Bundle, workshops: Workshop[]): Workshop[] {
 
 export default function Landing() {
   const { t } = useTranslation();
+  const { currency } = useLanguage();
   const { data: courses = [] } = useQuery({
     queryKey: ['courses'],
     queryFn: coursesService.getCourses,
@@ -199,7 +202,8 @@ export default function Landing() {
               {featuredBundles.map(bundle => {
                 const bundleCourses = getBundleCourses(bundle, courses);
                 const bundleWorkshops = getBundleWorkshops(bundle, workshops);
-                const savings = bundle.originalPrice - bundle.price;
+                const pv = bundlePriceView(currency, bundle);
+                const savings = pv.compareAt != null ? pv.compareAt - pv.amount : 0;
                 const capacityStatus = bundleCapacityStatus(bundleWorkshops);
                 const isSoldOut = capacityStatus.kind === 'sold_out';
                 return (
@@ -242,10 +246,14 @@ export default function Landing() {
                       </div>
                       <div className="flex items-center justify-between mt-4 pt-3 border-t border-chocolate-100/30">
                         <div>
-                          <span className="text-xs text-ink-light line-through">{formatPrice(bundle.originalPrice)}</span>
-                          <span className="block text-lg font-bold text-chocolate">{formatPrice(bundle.price)}</span>
+                          {pv.compareAt != null && (
+                            <span className="text-xs text-ink-light line-through">{formatPrice(pv.compareAt, pv.currency)}</span>
+                          )}
+                          <span className="block text-lg font-bold text-chocolate">{formatPrice(pv.amount, pv.currency)}</span>
                         </div>
-                        <span className="text-xs text-success font-semibold">{t('landing.youSave', { amount: formatPrice(savings) })}</span>
+                        {savings > 0 && (
+                          <span className="text-xs text-success font-semibold">{t('landing.youSave', { amount: formatPrice(savings, pv.currency) })}</span>
+                        )}
                       </div>
                     </div>
                   </Link>

@@ -12,8 +12,10 @@ import { coursesService } from '@/services/courses';
 import { enrollmentsService } from '@/services/enrollments';
 import { paymentsService } from '@/services/payments';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { formatPrice, formatDateTime } from '@/utils/format';
+import { itemPriceView } from '@/utils/pricing';
 import { workshopCapacityStatus } from '@/utils/capacity';
 import { CapacityBadge } from '@/components/ui/CapacityBadge';
 
@@ -26,6 +28,7 @@ function formatDate(iso: string): string {
 export default function WorkshopDetail() {
   const { slug } = useParams<{ slug: string }>();
   const { isAuthenticated } = useAuth();
+  const { currency } = useLanguage();
   const { t } = useTranslation();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -85,8 +88,13 @@ export default function WorkshopDetail() {
         toast.success(t('workshops.enrollConfirmed'));
         return;
       }
-      const { initPoint } = await paymentsService.createPreference({ workshopId: workshop.id });
-      window.location.href = initPoint;
+      if (currency === 'USD' && (workshop.discountPriceUsd ?? workshop.priceUsd)) {
+        const { checkoutUrl } = await paymentsService.createLemonCheckout({ workshopId: workshop.id });
+        window.location.href = checkoutUrl;
+      } else {
+        const { initPoint } = await paymentsService.createPreference({ workshopId: workshop.id });
+        window.location.href = initPoint;
+      }
     } catch (err: unknown) {
       const error = err as { status?: number; message?: string };
       if (error.message === 'cupo_agotado') {
@@ -127,7 +135,8 @@ export default function WorkshopDetail() {
     );
   }
 
-  const effectivePrice = workshop.discountPrice ?? workshop.price;
+  const pv = itemPriceView(currency, workshop);
+  const intlUnavailable = currency === 'USD' && !pv.usdAvailable;
   const seatsLeft =
     workshop.capacity != null ? Math.max(workshop.capacity - workshop.registeredCount, 0) : null;
   const capacityStatus = workshopCapacityStatus(workshop);
@@ -193,9 +202,9 @@ export default function WorkshopDetail() {
 
               <div className="mb-4">
                 <div className="flex items-baseline gap-3">
-                  <span className="font-display text-3xl font-bold text-chocolate">{formatPrice(effectivePrice)}</span>
-                  {workshop.discountPrice && workshop.discountPrice < workshop.price && (
-                    <span className="text-lg text-ink-light line-through">{formatPrice(workshop.price)}</span>
+                  <span className="font-display text-3xl font-bold text-chocolate">{formatPrice(pv.amount, pv.currency)}</span>
+                  {pv.compareAt != null && (
+                    <span className="text-lg text-ink-light line-through">{formatPrice(pv.compareAt, pv.currency)}</span>
                   )}
                 </div>
               </div>
@@ -254,11 +263,14 @@ export default function WorkshopDetail() {
                 <>
                   <button
                     onClick={handleEnroll}
-                    disabled={busy || soldOut}
+                    disabled={busy || soldOut || intlUnavailable}
                     className="btn-primary btn-lg btn-full rounded-xl disabled:opacity-60"
                   >
                     {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : soldOut ? t('workshops.soldOutSeats') : t('workshops.enrollNow')}
                   </button>
+                  {intlUnavailable && (
+                    <p className="mt-3 text-xs text-ink-light">{t('pricing.intlComingSoon')}</p>
+                  )}
                   {prereqCourses.length > 0 && (
                     <p className="mt-3 text-xs text-ink-light">
                       {t('workshops.enrollNowPrereqHint')}

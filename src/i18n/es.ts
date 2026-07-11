@@ -511,5 +511,9 @@ export const es = {
     signOut: 'Cerrar sesión',
     signedOut: 'Sesión cerrada.',
     languageSelector: 'Idioma',
+    currencySelector: 'Moneda',
+  },
+  pricing: {
+    intlComingSoon: 'Compra internacional próximamente. Se muestra el precio en pesos.',
   },
 } as const;

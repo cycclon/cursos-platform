@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Camera, Plus, X, Loader2, Save, Video, GripVertical,
-  CheckCircle2, CreditCard, ExternalLink, Unlink, AlertCircle, Sparkles,
+  CheckCircle2, CreditCard, ExternalLink, Unlink, AlertCircle, Sparkles, Globe,
 } from 'lucide-react';
 import EnglishSection from '@/components/teacher/EnglishSection';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
@@ -10,6 +10,7 @@ import { teacherService } from '@/services/teacher';
 import { uploadsService } from '@/services/uploads';
 import { subtitlesService, type SubtitleJobInfo } from '@/services/subtitles';
 import { mercadoPagoService } from '@/services/mercadoPago';
+import { lemonSqueezyService, type LsStore, type LsVariant } from '@/services/lemonSqueezy';
 import { pruneEn } from '@/utils/translations';
 import { getVideoProvider } from '@/utils/video';
 import { useToast } from '@/context/ToastContext';
@@ -21,7 +22,7 @@ const INPUT = 'w-full px-4 py-2.5 rounded-xl border border-chocolate-100/40 bg-p
 export default function ProfileSettings() {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const { isMainTeacher } = useAuth();
+  const { isMainTeacher, role } = useAuth();
   const photoInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const subtitleInputRef = useRef<HTMLInputElement>(null);
@@ -78,6 +79,96 @@ export default function ProfileSettings() {
       toast.error('No se pudo desconectar la cuenta. Probá de nuevo.');
     } finally {
       setIsDisconnectingMp(false);
+    }
+  };
+
+  // --- Lemon Squeezy (international USD lane) connection ---
+  const { data: lsStatus, isLoading: lsLoading } = useQuery({
+    queryKey: ['lemonsqueezy-status'],
+    queryFn: lemonSqueezyService.getStatus,
+    enabled: role === 'teacher' || role === 'superuser',
+  });
+
+  const [lsApiKey, setLsApiKey] = useState('');
+  const [lsTestMode, setLsTestMode] = useState(false);
+  const [lsStores, setLsStores] = useState<LsStore[]>([]);
+  const [lsVariants, setLsVariants] = useState<LsVariant[]>([]);
+  const [lsStoreId, setLsStoreId] = useState('');
+  const [lsVariantId, setLsVariantId] = useState('');
+  const [lsDetecting, setLsDetecting] = useState(false);
+  const [lsConnecting, setLsConnecting] = useState(false);
+  const [lsDisconnecting, setLsDisconnecting] = useState(false);
+
+  const handleLsDetect = async () => {
+    if (!lsApiKey.trim()) return;
+    setLsDetecting(true);
+    try {
+      const r = await lemonSqueezyService.inspect({ apiKey: lsApiKey.trim() });
+      setLsStores(r.stores);
+      setLsStoreId(r.storeId ?? '');
+      setLsVariants(r.variants);
+      setLsVariantId('');
+      if (r.stores.length === 0) toast.error('No se encontraron tiendas para esa API key.');
+    } catch {
+      toast.error('No se pudo validar la API key. Revisá que sea correcta y del modo elegido.');
+    } finally {
+      setLsDetecting(false);
+    }
+  };
+
+  const handleLsStoreChange = async (storeId: string) => {
+    setLsStoreId(storeId);
+    setLsVariantId('');
+    setLsVariants([]);
+    if (!storeId) return;
+    setLsDetecting(true);
+    try {
+      const r = await lemonSqueezyService.inspect({ apiKey: lsApiKey.trim(), storeId });
+      setLsVariants(r.variants);
+    } catch {
+      toast.error('No se pudieron cargar los productos de esa tienda.');
+    } finally {
+      setLsDetecting(false);
+    }
+  };
+
+  const handleLsConnect = async () => {
+    if (!lsStoreId || !lsVariantId) return;
+    setLsConnecting(true);
+    try {
+      await lemonSqueezyService.connect({
+        apiKey: lsApiKey.trim(),
+        storeId: lsStoreId,
+        variantId: lsVariantId,
+        testMode: lsTestMode,
+      });
+      queryClient.invalidateQueries({ queryKey: ['lemonsqueezy-status'] });
+      toast.success('Lemon Squeezy conectado. Ya podés cobrar en USD.');
+      setLsApiKey('');
+      setLsStores([]);
+      setLsVariants([]);
+      setLsStoreId('');
+      setLsVariantId('');
+    } catch {
+      toast.error('No se pudo completar la conexión. Probá de nuevo.');
+    } finally {
+      setLsConnecting(false);
+    }
+  };
+
+  const handleLsDisconnect = async () => {
+    if (!window.confirm('¿Desconectar Lemon Squeezy? Los estudiantes internacionales no podrán pagar en USD hasta reconectar.')) {
+      return;
+    }
+    setLsDisconnecting(true);
+    try {
+      await lemonSqueezyService.disconnect();
+      queryClient.invalidateQueries({ queryKey: ['lemonsqueezy-status'] });
+      toast.success('Lemon Squeezy desconectado.');
+    } catch {
+      toast.error('No se pudo desconectar. Probá de nuevo.');
+    } finally {
+      setLsDisconnecting(false);
     }
   };
 
@@ -511,6 +602,216 @@ export default function ProfileSettings() {
                   Conectar Mercado Pago
                   <ExternalLink className="w-4 h-4 opacity-70" />
                 </button>
+              </div>
+            )}
+          </div>
+          )}
+
+          {/* Lemon Squeezy connection — platform-wide USD lane (single store) */}
+          {(role === 'teacher' || role === 'superuser') && (
+          <div
+            className={`rounded-xl p-6 shadow-warm border ${
+              lsStatus?.connected
+                ? 'bg-parchment border-chocolate-100/20'
+                : 'bg-gradient-to-br from-gold/10 to-parchment border-gold/30'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h2 className="font-display text-lg font-bold text-ink gold-underline">
+                  Cobros internacionales (USD)
+                </h2>
+                <p className="text-xs text-ink-light mt-1">
+                  Lemon Squeezy · para compradores fuera de Argentina
+                </p>
+              </div>
+              {lsStatus?.connected && (
+                <span className="inline-flex items-center gap-1.5 shrink-0 text-xs font-semibold text-success bg-success-light border border-success/30 px-2.5 py-1 rounded-full">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {lsStatus.testMode ? 'Prueba' : 'Conectada'}
+                </span>
+              )}
+            </div>
+
+            {lsLoading ? (
+              <div className="mt-6 space-y-2">
+                <div className="h-4 bg-cream-dark/40 rounded animate-pulse w-3/4" />
+                <div className="h-10 bg-cream-dark/40 rounded animate-pulse w-48" />
+              </div>
+            ) : lsStatus?.connected ? (
+              <div className="mt-6 space-y-4">
+                <p className="text-sm text-ink-light leading-relaxed">
+                  Los estudiantes que elijan USD pagan a través de Lemon Squeezy. Los fondos se
+                  acreditan en el método de pago configurado en tu cuenta de Lemon Squeezy.
+                </p>
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <div className="bg-cream-dark/40 rounded-lg px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-wider text-ink-light/70 font-semibold">
+                      Tienda
+                    </p>
+                    <p className="text-sm text-ink mt-0.5 truncate">
+                      {lsStatus.storeName || lsStatus.storeId}
+                    </p>
+                  </div>
+                  <div className="bg-cream-dark/40 rounded-lg px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-wider text-ink-light/70 font-semibold">
+                      Modo
+                    </p>
+                    <p className="text-sm text-ink mt-0.5">
+                      {lsStatus.testMode ? 'Prueba' : 'Producción'}
+                    </p>
+                  </div>
+                  <div className="bg-cream-dark/40 rounded-lg px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-wider text-ink-light/70 font-semibold">
+                      Conectada el
+                    </p>
+                    <p className="text-sm text-ink mt-0.5">
+                      {lsStatus.connectedAt
+                        ? new Date(lsStatus.connectedAt).toLocaleDateString('es-AR', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })
+                        : '—'}
+                    </p>
+                  </div>
+                </div>
+                {lsStatus.source === 'env' ? (
+                  <div className="flex items-start gap-2 text-xs text-ink-light pt-1">
+                    <AlertCircle className="w-3.5 h-3.5 text-gold-dark shrink-0 mt-0.5" />
+                    <span>
+                      Configurado por variables de entorno del servidor. Para gestionarlo desde acá,
+                      reconectá pegando tu API key.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="pt-2 border-t border-chocolate-100/20">
+                    <button
+                      onClick={handleLsDisconnect}
+                      disabled={lsDisconnecting}
+                      className="inline-flex items-center gap-2 text-sm font-medium text-ink-light hover:text-error transition-colors disabled:opacity-50"
+                    >
+                      {lsDisconnecting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Unlink className="w-4 h-4" />
+                      )}
+                      {lsDisconnecting ? 'Desconectando…' : 'Desconectar'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="mt-4 space-y-5">
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-gold/10 border border-gold/30">
+                  <AlertCircle className="w-5 h-5 text-gold-dark shrink-0 mt-0.5" />
+                  <p className="text-sm text-ink leading-relaxed">
+                    <span className="font-semibold">Pegá tu API key de Lemon Squeezy</span> y detectamos
+                    tu tienda, creamos el webhook y dejamos todo listo. No hace falta tocar el servidor.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-ink mb-1.5">API key</label>
+                    <input
+                      type="password"
+                      value={lsApiKey}
+                      onChange={(e) => setLsApiKey(e.target.value)}
+                      placeholder="Pegá tu API key (Settings » API en Lemon Squeezy)"
+                      className={INPUT}
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-ink-light">
+                    <input
+                      type="checkbox"
+                      checked={lsTestMode}
+                      onChange={(e) => setLsTestMode(e.target.checked)}
+                      className="w-4 h-4 rounded accent-chocolate"
+                    />
+                    Modo de prueba (usá una API key de test)
+                  </label>
+                  <button
+                    onClick={handleLsDetect}
+                    disabled={!lsApiKey.trim() || lsDetecting}
+                    className="inline-flex items-center gap-2 btn-secondary btn-md rounded-xl disabled:opacity-50"
+                  >
+                    {lsDetecting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-4 h-4" />
+                    )}
+                    {lsDetecting ? 'Detectando…' : 'Detectar tienda'}
+                  </button>
+                </div>
+
+                {lsStores.length > 0 && (
+                  <div className="space-y-3 pt-2 border-t border-chocolate-100/20">
+                    {lsStores.length > 1 && (
+                      <div>
+                        <label className="block text-sm font-medium text-ink mb-1.5">Tienda</label>
+                        <select
+                          value={lsStoreId}
+                          onChange={(e) => handleLsStoreChange(e.target.value)}
+                          className={INPUT}
+                        >
+                          <option value="">Elegí una tienda…</option>
+                          {lsStores.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-sm font-medium text-ink mb-1.5">
+                        Producto / variante
+                      </label>
+                      <select
+                        value={lsVariantId}
+                        onChange={(e) => setLsVariantId(e.target.value)}
+                        disabled={lsVariants.length === 0}
+                        className={INPUT}
+                      >
+                        <option value="">
+                          {lsVariants.length
+                            ? 'Elegí el producto placeholder…'
+                            : 'Sin productos — creá uno en Lemon Squeezy'}
+                        </option>
+                        {lsVariants.map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {v.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1.5 text-xs text-ink-light">
+                        El precio de este producto no importa: cada compra usa el precio USD del curso.
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleLsConnect}
+                      disabled={!lsStoreId || !lsVariantId || lsConnecting}
+                      className="inline-flex items-center gap-2 btn-primary btn-lg rounded-xl disabled:opacity-50"
+                    >
+                      {lsConnecting ? (
+                        <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                      ) : (
+                        <Globe className="w-4.5 h-4.5" />
+                      )}
+                      {lsConnecting ? 'Conectando…' : 'Conectar Lemon Squeezy'}
+                    </button>
+                  </div>
+                )}
+
+                <a
+                  href="https://app.lemonsqueezy.com/settings/api"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs text-chocolate hover:underline"
+                >
+                  Generar una API key en Lemon Squeezy <ExternalLink className="w-3 h-3" />
+                </a>
               </div>
             )}
           </div>

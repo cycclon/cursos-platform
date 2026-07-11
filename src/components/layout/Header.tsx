@@ -8,7 +8,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { bundlesService } from '@/services/bundles';
 import { workshopsService } from '@/services/workshops';
-import type { AppLanguage } from '@/types';
+import type { AppLanguage, AppCurrency } from '@/types';
 
 // Compact ES|EN segmented control. Quiet by design: it's a utility, not a
 // feature — the active segment picks up the chocolate accent, nothing more.
@@ -38,6 +38,38 @@ function LanguageToggle({ className = '' }: { className?: string }) {
     >
       {segment('es', 'ES')}
       {segment('en', 'EN')}
+    </div>
+  );
+}
+
+// Compact ARS|USD segmented control — twin of LanguageToggle. Picks the pricing +
+// checkout lane: pesos via Mercado Pago, or dollars via Lemon Squeezy.
+function CurrencyToggle({ className = '' }: { className?: string }) {
+  const { currency, setCurrency } = useLanguage();
+  const { t } = useTranslation();
+
+  const segment = (value: AppCurrency, label: string) => (
+    <button
+      onClick={() => setCurrency(value)}
+      aria-pressed={currency === value}
+      className={`px-2 py-1 text-xs font-semibold tracking-wide transition-colors ${
+        currency === value
+          ? 'bg-chocolate text-cream'
+          : 'text-ink-light hover:text-chocolate hover:bg-chocolate-50'
+      }`}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div
+      role="group"
+      aria-label={t('header.currencySelector')}
+      className={`flex items-center rounded-lg border border-chocolate-100 overflow-hidden ${className}`}
+    >
+      {segment('ARS', 'ARS')}
+      {segment('USD', 'USD')}
     </div>
   );
 }
@@ -138,6 +170,7 @@ export default function Header() {
           {/* Right side */}
           <div className="flex items-center gap-3">
             <LanguageToggle className="hidden md:flex" />
+            <CurrencyToggle className="hidden md:flex" />
             {isAuthenticated ? (
               <div className="hidden md:flex items-center gap-3">
                 <Link
@@ -217,6 +250,12 @@ export default function Header() {
                 {t('header.languageSelector')}
               </span>
               <LanguageToggle />
+            </div>
+            <div className="flex items-center justify-between px-3 pt-2">
+              <span className="text-xs font-medium text-ink-light uppercase tracking-wide">
+                {t('header.currencySelector')}
+              </span>
+              <CurrencyToggle />
             </div>
           </nav>
         </div>

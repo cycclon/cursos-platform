@@ -51,6 +51,7 @@ export default function TeacherDashboard() {
   }
 
   const totalRevenue = salesData.reduce((sum, d) => sum + d.revenue, 0);
+  const totalRevenueUsd = salesData.reduce((sum, d) => sum + (d.revenueUsd ?? 0), 0);
   const totalStudents = teacher?.totalStudents ?? 0;
   const ratedCourses = courses.filter(c => c.reviewCount > 0);
   const avgRating = ratedCourses.length > 0
@@ -73,7 +74,7 @@ export default function TeacherDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         {[
           {
-            icon: DollarSign, label: 'Ingresos totales', value: formatPrice(totalRevenue),
+            icon: DollarSign, label: 'Ingresos totales', value: totalRevenueUsd > 0 ? `${formatPrice(totalRevenue)} + ${formatPrice(totalRevenueUsd, 'USD')}` : formatPrice(totalRevenue),
             change: `+${revenueChange}%`, up: true, color: 'text-chocolate bg-chocolate-50',
           },
           {

@@ -112,6 +112,8 @@ const emptyCourseForm = {
   imageUrl: '',
   price: 0,
   discountPrice: undefined as number | undefined,
+  priceUsd: undefined as number | undefined,
+  discountPriceUsd: undefined as number | undefined,
   discountLabel: '',
   duration: '',
   prerequisites: [] as string[],
@@ -238,6 +240,8 @@ export default function CourseManager() {
       imageUrl: course.imageUrl,
       price: course.price,
       discountPrice: course.discountPrice,
+      priceUsd: course.priceUsd,
+      discountPriceUsd: course.discountPriceUsd,
       discountLabel: course.discountLabel ?? '',
       duration: course.duration,
       prerequisites: course.prerequisites ?? [],
@@ -1812,6 +1816,39 @@ export default function CourseManager() {
                   </div>
                 </div>
               </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-1.5">Precio (USD)</label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-light" />
+                    <input
+                      type="number"
+                      value={formData.priceUsd ?? ''}
+                      onChange={e => setFormData(prev => ({ ...prev, priceUsd: e.target.value ? Number(e.target.value) : undefined }))}
+                      placeholder="Sin venta internacional"
+                      min={0}
+                      className={`${INPUT} pl-9`}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-1.5">Precio con descuento (USD)</label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-light" />
+                    <input
+                      type="number"
+                      value={formData.discountPriceUsd ?? ''}
+                      onChange={e => setFormData(prev => ({ ...prev, discountPriceUsd: e.target.value ? Number(e.target.value) : undefined }))}
+                      placeholder="Opcional"
+                      min={0}
+                      className={`${INPUT} pl-9`}
+                    />
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-ink-light">
+                Precio fijo en dólares para compradores internacionales (Lemon Squeezy). Si se deja vacío, el curso no se vende en USD.
+              </p>
               {formData.discountPrice && formData.price > 0 && formData.discountPrice < formData.price && (
                 <p className="text-sm text-success font-medium">
                   Descuento: {Math.round((1 - formData.discountPrice / formData.price) * 100)}% OFF

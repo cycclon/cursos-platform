@@ -1,5 +1,6 @@
 export type UserRole = 'visitor' | 'student' | 'teacher' | 'superuser';
 export type AppLanguage = 'es' | 'en';
+export type AppCurrency = 'ARS' | 'USD';
 
 export interface User {
   id: string;
@@ -99,6 +100,8 @@ export interface Course {
   imageUrl: string;
   price: number;
   discountPrice?: number;
+  priceUsd?: number;
+  discountPriceUsd?: number;
   discountLabel?: string;
   duration: string;
   modules: Module[];
@@ -231,7 +234,10 @@ export interface Certificate {
 
 export interface SalesData {
   month: string;
+  /** ARS revenue for the month (Mercado Pago lane). */
   revenue: number;
+  /** USD revenue for the month (Lemon Squeezy lane); never summed with ARS. */
+  revenueUsd?: number;
   sales: number;
   students: number;
 }
@@ -248,7 +254,10 @@ export interface CourseStat {
   title: string;
   views: number;
   enrollments: number;
+  /** ARS revenue (Mercado Pago lane). */
   revenue: number;
+  /** USD revenue (Lemon Squeezy lane); never summed with ARS. */
+  revenueUsd?: number;
   avgRating: number;
 }
 
@@ -259,7 +268,10 @@ export interface SaleDetail {
   status: 'pending' | 'approved' | 'rejected' | 'refunded';
   paidAt: string | null;
   createdAt: string | null;
+  currency: 'ARS' | 'USD';
+  provider: 'mercadopago' | 'lemonsqueezy';
   mercadoPagoId: string | null;
+  lemonSqueezyOrderId: string | null;
   student: {
     id: string;
     name: string;
@@ -297,6 +309,8 @@ export interface Bundle {
   workshopIds: string[];
   price: number;
   originalPrice: number;
+  priceUsd?: number;
+  originalPriceUsd?: number;
   discountLabel: string;
   imageUrl: string;
   featured: boolean;
@@ -318,6 +332,8 @@ export interface Workshop {
   imageUrl: string;
   price: number;
   discountPrice?: number;
+  priceUsd?: number;
+  discountPriceUsd?: number;
   discountLabel?: string;
   scheduledAt: string;
   durationMinutes: number;

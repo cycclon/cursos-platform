@@ -13,13 +13,16 @@ import CourseImage from '@/components/ui/CourseImage';
 import ModuleVideoPreview from '@/components/ui/ModuleVideoPreview';
 import { reviewsService } from '@/services/reviews';
 import { formatPrice, formatDate } from '@/utils/format';
+import { itemPriceView } from '@/utils/pricing';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import StarRating from '@/components/ui/StarRating';
 
 export default function CourseDetail() {
   const { slug } = useParams<{ slug: string }>();
   const { user, role, isAuthenticated } = useAuth();
+  const { currency } = useLanguage();
   const { t } = useTranslation();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -73,11 +76,16 @@ export default function CourseDetail() {
       return;
     }
 
-    // Paid course → Mercado Pago
+    // Paid course → USD lane (Lemon Squeezy) or ARS lane (Mercado Pago)
     setEnrolling(true);
     try {
-      const { initPoint } = await paymentsService.createPreference({ courseId: course!.id });
-      window.location.href = initPoint;
+      if (currency === 'USD' && (course!.discountPriceUsd ?? course!.priceUsd)) {
+        const { checkoutUrl } = await paymentsService.createLemonCheckout({ courseId: course!.id });
+        window.location.href = checkoutUrl;
+      } else {
+        const { initPoint } = await paymentsService.createPreference({ courseId: course!.id });
+        window.location.href = initPoint;
+      }
     } catch (err: unknown) {
       const error = err as { status?: number; message?: string };
       if (error.status === 503 && error.message === 'mercadopago_not_connected') {
@@ -181,6 +189,9 @@ export default function CourseDetail() {
     // Use a ref-like approach or just let it be null on first render
   }
 
+  const pv = itemPriceView(currency, course);
+  const intlUnavailable = currency === 'USD' && !pv.usdAvailable;
+
   const fileIcon: Record<string, string> = { pdf: 'PDF', docx: 'DOC', pptx: 'PPT', xlsx: 'XLS' };
 
   return (
@@ -220,14 +231,16 @@ export default function CourseDetail() {
                 </div>
               </div>
               <div className="mb-4">
-                {course.discountPrice ? (
+                {pv.compareAt != null ? (
                   <div className="flex items-baseline gap-3">
-                    <span className="font-display text-3xl font-bold text-chocolate">{formatPrice(course.discountPrice)}</span>
-                    <span className="text-lg text-ink-light line-through">{formatPrice(course.price)}</span>
-                    <span className="text-xs font-bold text-error bg-error-light px-2 py-0.5 rounded-full">{course.discountLabel}</span>
+                    <span className="font-display text-3xl font-bold text-chocolate">{formatPrice(pv.amount, pv.currency)}</span>
+                    <span className="text-lg text-ink-light line-through">{formatPrice(pv.compareAt, pv.currency)}</span>
+                    {course.discountLabel && (
+                      <span className="text-xs font-bold text-error bg-error-light px-2 py-0.5 rounded-full">{course.discountLabel}</span>
+                    )}
                   </div>
                 ) : (
-                  <span className="font-display text-3xl font-bold text-chocolate">{formatPrice(course.price)}</span>
+                  <span className="font-display text-3xl font-bold text-chocolate">{formatPrice(pv.amount, pv.currency)}</span>
                 )}
               </div>
 
@@ -256,6 +269,13 @@ export default function CourseDetail() {
                       ? t('courseDetail.enrollmentsClosed')
                       : t('courseDetail.unavailable')}
                 </button>
+              ) : intlUnavailable ? (
+                <button
+                  disabled
+                  className="btn-primary btn-lg btn-full rounded-xl opacity-60 cursor-not-allowed"
+                >
+                  {t('courseDetail.enrollNow')}
+                </button>
               ) : (
                 <button
                   onClick={handleEnroll}
@@ -264,6 +284,10 @@ export default function CourseDetail() {
                 >
                   {enrolling ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : t('courseDetail.enrollNow')}
                 </button>
+              )}
+
+              {intlUnavailable && (
+                <p className="mt-3 text-xs text-ink-light text-center">{t('pricing.intlComingSoon')}</p>
               )}
 
               {course.moneyBackGuarantee && (

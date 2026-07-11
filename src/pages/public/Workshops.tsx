@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { ArrowRight, CalendarDays, Video, MapPin, Users, Clock } from 'lucide-react';
 import { workshopsService } from '@/services/workshops';
 import { formatPrice, formatDateTime } from '@/utils/format';
+import { itemPriceView } from '@/utils/pricing';
+import { useLanguage } from '@/context/LanguageContext';
 import { workshopCapacityStatus } from '@/utils/capacity';
 import { CapacityBadge } from '@/components/ui/CapacityBadge';
 
@@ -15,6 +17,7 @@ function formatDate(iso: string): string {
 
 export default function Workshops() {
   const { t } = useTranslation();
+  const { currency } = useLanguage();
   const { data: workshops = [], isLoading } = useQuery({
     queryKey: ['workshops'],
     queryFn: () => workshopsService.getWorkshops(),
@@ -62,7 +65,7 @@ export default function Workshops() {
                 workshop.capacity != null ? Math.max(workshop.capacity - workshop.registeredCount, 0) : null;
               const capacityStatus = workshopCapacityStatus(workshop);
               const isSoldOut = capacityStatus.kind === 'sold_out';
-              const effectivePrice = workshop.discountPrice ?? workshop.price;
+              const pv = itemPriceView(currency, workshop);
               return (
                 <Link
                   key={workshop.id}
@@ -126,10 +129,10 @@ export default function Workshops() {
 
                     <div className="flex items-center justify-between pt-3 border-t border-chocolate-100/30">
                       <div>
-                        {workshop.discountPrice && workshop.discountPrice < workshop.price && (
-                          <span className="text-xs text-ink-light line-through">{formatPrice(workshop.price)}</span>
+                        {pv.compareAt != null && (
+                          <span className="text-xs text-ink-light line-through">{formatPrice(pv.compareAt, pv.currency)}</span>
                         )}
-                        <span className="block text-lg font-bold text-chocolate">{formatPrice(effectivePrice)}</span>
+                        <span className="block text-lg font-bold text-chocolate">{formatPrice(pv.amount, pv.currency)}</span>
                       </div>
                       <span className="flex items-center gap-1 text-sm font-medium text-ink-light group-hover:text-chocolate transition-colors">
                         {t('workshops.viewWorkshop')}

@@ -1,18 +1,24 @@
-import { createContext, useCallback, useContext, useEffect, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import { authService } from '@/services/auth';
 import {
   applyDocumentLang,
+  CURRENCY_STORAGE_KEY,
+  getCurrentCurrency,
   LANG_STORAGE_KEY,
+  setCurrentCurrency,
   setCurrentLang,
+  type AppCurrency,
   type AppLanguage,
 } from '@/i18n/lang';
 
 interface LanguageContextType {
   language: AppLanguage;
   setLanguage: (lang: AppLanguage) => void;
+  currency: AppCurrency;
+  setCurrency: (currency: AppCurrency) => void;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -23,6 +29,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
   const language: AppLanguage = i18n.resolvedLanguage === 'en' ? 'en' : 'es';
+  const [currency, setCurrencyState] = useState<AppCurrency>(() => getCurrentCurrency());
 
   const applyLanguage = useCallback(
     (lang: AppLanguage) => {
@@ -58,6 +65,39 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     [applyLanguage, isAuthenticated, language, queryClient],
   );
 
+  const setCurrency = useCallback(
+    (next: AppCurrency) => {
+      if (next === currency) return;
+      try {
+        localStorage.setItem(CURRENCY_STORAGE_KEY, next);
+      } catch {
+        /* storage unavailable — the choice still applies for this session */
+      }
+      setCurrentCurrency(next);
+      setCurrencyState(next);
+    },
+    [currency],
+  );
+
+  // Until the visitor explicitly picks a currency, follow the language default
+  // (English → USD, Spanish → ARS). An explicit choice (stored) sticks.
+  useEffect(() => {
+    let hasChoice = false;
+    try {
+      const stored = localStorage.getItem(CURRENCY_STORAGE_KEY);
+      hasChoice = stored === 'ARS' || stored === 'USD';
+    } catch {
+      /* ignore */
+    }
+    if (hasChoice) return;
+    const next: AppCurrency = language === 'en' ? 'USD' : 'ARS';
+    if (next !== currency) {
+      setCurrentCurrency(next);
+      setCurrencyState(next);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
+
   // Account preference: when the user logs in on a device without an explicit
   // local choice, follow their stored language.
   useEffect(() => {
@@ -76,7 +116,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [user?.language]);
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage }}>
+    <LanguageContext.Provider value={{ language, setLanguage, currency, setCurrency }}>
       {children}
     </LanguageContext.Provider>
   );

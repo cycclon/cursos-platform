@@ -506,5 +506,9 @@ export const en = {
     signOut: 'Sign out',
     signedOut: 'Signed out.',
     languageSelector: 'Language',
+    currencySelector: 'Currency',
+  },
+  pricing: {
+    intlComingSoon: 'International checkout coming soon. Showing the peso price.',
   },
 } as const;

@@ -45,6 +45,7 @@ const emptyForm = {
   courseIds: [] as string[],
   workshopIds: [] as string[],
   price: 0,
+  priceUsd: undefined as number | undefined,
   featured: false,
   translations: { en: {} as BundleEn },
 };
@@ -106,6 +107,7 @@ export default function BundleManager() {
       courseIds: bundle.courseIds,
       workshopIds: bundle.workshopIds ?? [],
       price: bundle.price,
+      priceUsd: bundle.priceUsd,
       featured: bundle.featured,
       translations: { en: { ...(bundle.translations?.en ?? {}) } },
     });
@@ -450,6 +452,19 @@ export default function BundleManager() {
                   Descuento: {discountPercentage}%
                 </p>
               )}
+              <label className="block text-sm font-medium text-ink mb-1.5 mt-4">Precio del Combo (USD)</label>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-light" />
+                <input
+                  type="number"
+                  min={0}
+                  value={formData.priceUsd ?? ''}
+                  onChange={e => setFormData({ ...formData, priceUsd: e.target.value ? Number(e.target.value) : undefined })}
+                  placeholder="Sin venta internacional"
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-chocolate-100/40 bg-parchment text-sm text-ink placeholder:text-ink-light/60 focus:outline-none focus:border-chocolate/40 focus:ring-2 focus:ring-chocolate/10 transition-all"
+                />
+              </div>
+              <p className="mt-2 text-xs text-ink-light">Precio fijo en USD (Lemon Squeezy). Vacío = sin venta internacional.</p>
             </div>
             <div className="pt-7">
               <label className="flex items-center gap-3 cursor-pointer">

@@ -36,7 +36,7 @@ function formatDateTime(iso: string | null): { date: string; time: string } {
 }
 
 function toCSV(rows: SaleDetail[]): string {
-  const header = ['Fecha', 'Hora', 'Tipo', 'Artículo', 'Comprador', 'Email', 'Monto (ARS)', 'ID Mercado Pago'];
+  const header = ['Fecha', 'Hora', 'Tipo', 'Artículo', 'Comprador', 'Email', 'Monto', 'Moneda', 'ID Pago'];
   const escape = (v: string) => {
     if (v.includes(',') || v.includes('"') || v.includes('\n')) {
       return `"${v.replace(/"/g, '""')}"`;
@@ -53,7 +53,8 @@ function toCSV(rows: SaleDetail[]): string {
       r.student?.name ?? '—',
       r.student?.email ?? '—',
       String(r.amount),
-      r.mercadoPagoId ?? '',
+      r.currency ?? 'ARS',
+      r.mercadoPagoId ?? r.lemonSqueezyOrderId ?? '',
     ].map(escape).join(',');
   });
   return [header.join(','), ...lines].join('\n');
@@ -140,11 +141,22 @@ export default function SalesDetail() {
   }, [filtered, sortKey, sortDir]);
 
   const totals = useMemo(() => {
-    const revenue = filtered.reduce((s, x) => s + x.amount, 0);
     const buyers = new Set(filtered.map((x) => x.student?.id).filter(Boolean)).size;
     const count = filtered.length;
-    const avg = count > 0 ? revenue / count : 0;
-    return { revenue, buyers, count, avg };
+    // ARS and USD settle in different currencies — keep them separate, never sum.
+    let revenueArs = 0;
+    let revenueUsd = 0;
+    let countArs = 0;
+    for (const x of filtered) {
+      if (x.currency === 'USD') {
+        revenueUsd += x.amount;
+      } else {
+        revenueArs += x.amount;
+        countArs += 1;
+      }
+    }
+    const avgArs = countArs > 0 ? revenueArs / countArs : 0;
+    return { buyers, count, revenueArs, revenueUsd, avgArs };
   }, [filtered]);
 
   const handleSort = (key: SortKey) => {
@@ -218,10 +230,10 @@ export default function SalesDetail() {
       {/* KPI strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
-          { icon: DollarSign, label: 'Ingresos filtrados', value: formatPrice(totals.revenue), color: 'text-chocolate bg-chocolate-50' },
+          { icon: DollarSign, label: 'Ingresos filtrados', value: totals.revenueUsd > 0 ? `${formatPrice(totals.revenueArs)} + ${formatPrice(totals.revenueUsd, 'USD')}` : formatPrice(totals.revenueArs), color: 'text-chocolate bg-chocolate-50' },
           { icon: ShoppingBag, label: 'Transacciones', value: totals.count.toLocaleString('es-AR'), color: 'text-gold bg-gold/10' },
           { icon: Users, label: 'Compradores únicos', value: totals.buyers.toLocaleString('es-AR'), color: 'text-success bg-success-light' },
-          { icon: TrendingUp, label: 'Ticket promedio', value: formatPrice(Math.round(totals.avg)), color: 'text-chocolate bg-chocolate-50' },
+          { icon: TrendingUp, label: 'Ticket promedio (ARS)', value: formatPrice(Math.round(totals.avgArs)), color: 'text-chocolate bg-chocolate-50' },
         ].map((s, i) => {
           const Icon = s.icon;
           return (
@@ -396,7 +408,7 @@ export default function SalesDetail() {
                       </td>
                       <td className="px-5 py-4 align-top text-right">
                         <span className="font-display text-base font-bold text-ink tabular-nums">
-                          {formatPrice(s.amount)}
+                          {formatPrice(s.amount, s.currency)}
                         </span>
                       </td>
                       <td className="px-5 py-4 align-top">
@@ -424,6 +436,21 @@ export default function SalesDetail() {
                               <ExternalLink className="w-3.5 h-3.5" />
                             </a>
                           </div>
+                        ) : s.lemonSqueezyOrderId ? (
+                          <div className="flex items-center gap-2">
+                            <code className="px-2 py-1 rounded-md bg-cream-dark/60 border border-chocolate-100/20 text-[11px] font-mono text-ink-light">
+                              LS #{s.lemonSqueezyOrderId}
+                            </code>
+                            <button
+                              onClick={() => handleCopy(s.lemonSqueezyOrderId!)}
+                              className="text-ink-light/70 hover:text-chocolate transition-colors"
+                              title="Copiar ID"
+                            >
+                              {copiedId === s.lemonSqueezyOrderId
+                                ? <Check className="w-3.5 h-3.5 text-success" />
+                                : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
                         ) : (
                           <span className="text-[11px] text-ink-light/60 italic">Sin referencia</span>
                         )}
@@ -438,7 +465,14 @@ export default function SalesDetail() {
                     {sorted.length} {sorted.length === 1 ? 'venta' : 'ventas'}
                   </td>
                   <td className="px-5 py-3 text-right font-display font-bold text-ink tabular-nums">
-                    {formatPrice(totals.revenue)}
+                    {totals.revenueUsd > 0 ? (
+                      <div className="flex flex-col items-end">
+                        <span>{formatPrice(totals.revenueArs)}</span>
+                        <span className="text-xs text-ink-light">{formatPrice(totals.revenueUsd, 'USD')}</span>
+                      </div>
+                    ) : (
+                      formatPrice(totals.revenueArs)
+                    )}
                   </td>
                   <td className="px-5 py-3" />
                 </tr>

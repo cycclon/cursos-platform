@@ -1,13 +1,15 @@
-import { currentLocale } from '@/i18n/lang';
+import { currentLocale, type AppCurrency } from '@/i18n/lang';
 
-// All formatting follows the active UI language (es-AR / en-US). Prices stay
-// in ARS regardless of language — Mercado Pago charges in pesos.
-export function formatPrice(price: number): string {
+// Digits follow the active UI language (es-AR / en-US); the currency is explicit.
+// ARS (Mercado Pago lane) shows whole pesos; USD (Lemon Squeezy lane) shows cents
+// only when present. Callers on public surfaces pass the selected currency; admin
+// surfaces omit it and get ARS.
+export function formatPrice(price: number, currency: AppCurrency = 'ARS'): string {
   return new Intl.NumberFormat(currentLocale(), {
     style: 'currency',
-    currency: 'ARS',
+    currency,
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    maximumFractionDigits: currency === 'USD' ? 2 : 0,
   }).format(price);
 }
 
