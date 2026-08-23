@@ -29,8 +29,8 @@ export default function ProfileSettings() {
   const subtitleLangRef = useRef<AppLanguage | null>(null);
 
   const { data: teacher, isLoading } = useQuery({
-    queryKey: ['teacher'],
-    queryFn: teacherService.getTeacher,
+    queryKey: ['teacher', 'edit'],
+    queryFn: teacherService.getTeacherForEdit,
   });
 
   const { data: mpStatus, isLoading: mpLoading } = useQuery({

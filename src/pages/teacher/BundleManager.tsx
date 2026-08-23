@@ -60,8 +60,8 @@ export default function BundleManager() {
   });
 
   const { data: bundles = [], isLoading: loadingBundles } = useQuery({
-    queryKey: ['bundles'],
-    queryFn: bundlesService.getBundles,
+    queryKey: ['bundles', 'edit'],
+    queryFn: bundlesService.getBundlesForEdit,
   });
 
   const { data: workshops = [], isLoading: loadingWorkshops } = useQuery({
@@ -202,6 +202,9 @@ export default function BundleManager() {
     const payload = {
       ...formData,
       originalPrice,
+      // Cleared USD price goes out as explicit `null` ("borrar"): JSON.stringify
+      // drops undefined keys and a missing key means "dejar como está".
+      priceUsd: formData.priceUsd ?? null,
       discountLabel,
       translations: { en: pruneEn(formData.translations.en) },
     };

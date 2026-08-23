@@ -21,6 +21,7 @@ import VerifyEmail from './pages/public/VerifyEmail'
 import Terms from './pages/public/Terms'
 import Privacy from './pages/public/Privacy'
 import Refund from './pages/public/Refund'
+import Redeem from './pages/public/Redeem'
 
 // Student pages
 import StudentDashboard from './pages/student/Dashboard'
@@ -43,6 +44,8 @@ import SalesDetail from './pages/teacher/SalesDetail'
 import FaqManager from './pages/teacher/FaqManager'
 import ReviewsManager from './pages/teacher/ReviewsManager'
 import ProfileSettings from './pages/teacher/ProfileSettings'
+import PromoCodeManager from './pages/teacher/PromoCodeManager'
+import GiftCard from './pages/teacher/GiftCard'
 
 // Admin pages
 import SuperuserPanel from './pages/admin/SuperuserPanel'
@@ -50,6 +53,7 @@ import BugReports from './pages/admin/BugReports'
 
 // Global widgets
 import BugReportWidget from './components/feedback/BugReportWidget'
+import PromoReturn from './components/auth/PromoReturn'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -83,6 +87,7 @@ export default function App() {
     <>
       <ScrollToTop />
       <GoogleLoginToast />
+      <PromoReturn />
       <Routes>
         {/* Public routes */}
         <Route element={<PublicLayout />}>
@@ -101,6 +106,8 @@ export default function App() {
           <Route path="/terminos-y-condiciones" element={<Terms />} />
           <Route path="/politica-de-privacidad" element={<Privacy />} />
           <Route path="/politica-de-reembolso" element={<Refund />} />
+          {/* Gift-card QR target and influencer share link */}
+          <Route path="/canjear/:code" element={<Redeem />} />
         </Route>
 
         {/* Student routes */}
@@ -131,6 +138,7 @@ export default function App() {
           <Route path="/admin/estudiantes/:studentId" element={<StudentDetail />} />
           <Route path="/admin/recordatorios" element={<MassReminders />} />
           <Route path="/admin/ventas" element={<SalesDetail />} />
+          <Route path="/admin/codigos" element={<PromoCodeManager />} />
         </Route>
 
         {/* Superuser routes */}
@@ -141,7 +149,12 @@ export default function App() {
           <Route path="/superusuario/recordatorios" element={<MassReminders />} />
           <Route path="/superusuario/ventas" element={<SalesDetail />} />
           <Route path="/superusuario/reportes" element={<BugReports />} />
+          <Route path="/superusuario/codigos" element={<PromoCodeManager />} />
         </Route>
+
+        {/* Gift card — no layout, so the print output has no dashboard chrome */}
+        <Route path="/admin/codigos/:id/tarjeta" element={<GiftCard />} />
+        <Route path="/superusuario/codigos/:id/tarjeta" element={<GiftCard />} />
       </Routes>
 
       {/* Floating "report a problem" launcher — shows for signed-in users only */}

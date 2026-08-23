@@ -132,6 +132,7 @@ export default function VideoPlayer({
       durationRef.current = video.duration;
       if (initialPosition > 0) {
         video.currentTime = Math.min(initialPosition, maxReachedRef.current || initialPosition);
+        resumeAppliedRef.current = true;
       }
     };
 
@@ -156,9 +157,23 @@ export default function VideoPlayer({
       const now = Date.now();
       currentPositionRef.current = video.currentTime;
 
-      // Advance maxReached only through natural playback
-      if (video.currentTime <= maxReachedRef.current + SEEK_TOLERANCE) {
-        maxReachedRef.current = Math.max(maxReachedRef.current, video.currentTime);
+      // Advance maxReached through natural playback.
+      //
+      // This used to require currentTime to stay within SEEK_TOLERANCE of
+      // maxReached. That silently broke on any gap in `timeupdate` — a locked
+      // phone, a backgrounded tab, a sleeping laptop — because playback carries
+      // on while the events stop, so the playhead came back minutes ahead of the
+      // counter and the condition was false on every tick from then on. Progress
+      // froze for the rest of the session while the video played to the end; one
+      // student finished a 50-minute video recorded as 27% watched.
+      //
+      // Forward seeking is already prevented in `handleSeeking`, so forward
+      // movement reaching this point is real playback and can be credited — the
+      // same rule the YouTube branch below has always used. `video.seeking`
+      // covers the window where a snap-back is still in flight, so a scrub can't
+      // slip through on a `timeupdate` that carries the pre-snap position.
+      if (!video.seeking && video.currentTime > maxReachedRef.current) {
+        maxReachedRef.current = video.currentTime;
       }
 
       // Accumulate watched time only during real playback
@@ -428,6 +443,29 @@ export default function VideoPlayer({
     // destroying/recreating the player when enrollment data loads.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider, url, videoId, reportProgress, checkCompletion]);
+
+  // ─── HTML5 <video> late resume ───
+  // The counterpart of the YouTube effect below, and for the same reason: the
+  // player mounts as soon as the course loads, but `initialPosition` comes from
+  // the enrollment query, which can resolve later. When it does, `loadedmetadata`
+  // has usually already fired, so the handler that would have seeked has been
+  // and gone — the video sits at 0 while the progress bar underneath correctly
+  // reads 32 minutes, and skip-prevention then refuses to seek forward because
+  // maxReached is still where the stale value left it.
+  useEffect(() => {
+    if (provider !== 'direct') return;
+    if (initialPosition <= 0 || resumeAppliedRef.current) return;
+
+    const video = videoRef.current;
+    // HAVE_METADATA — currentTime can't be set before the duration is known.
+    // Below that, `handleLoadedMetadata` is still ahead of us and will do it.
+    if (!video || video.readyState < 1) return;
+    // Don't yank the student out of playback they've deliberately started.
+    if (video.currentTime > 1) return;
+
+    resumeAppliedRef.current = true;
+    video.currentTime = Math.min(initialPosition, maxReachedRef.current || initialPosition);
+  }, [provider, initialPosition]);
 
   // ─── YouTube late resume ───
   // When enrollment loads after the player is already created, try to seek once.

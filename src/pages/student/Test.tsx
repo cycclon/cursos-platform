@@ -4,8 +4,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Clock, AlertCircle, CheckCircle2, XCircle, ArrowRight, Sparkles } from 'lucide-react';
 import { coursesService } from '@/services/courses';
+import { enrollmentsService } from '@/services/enrollments';
 import { testsService } from '@/services/tests';
 import { useToast } from '@/context/ToastContext';
+import GameExam from '@/components/exam/GameExam';
 
 
 type TestState = 'intro' | 'taking' | 'results';
@@ -21,10 +23,20 @@ export default function Test() {
     queryFn: coursesService.getCourses,
   });
 
+  const { data: enrollments = [], isLoading: loadingEnrollments } = useQuery({
+    queryKey: ['enrollments'],
+    queryFn: enrollmentsService.getEnrollments,
+  });
+
+  const enrollment = enrollments.find(e => e.courseId === courseId);
+  // An approved exam is final — don't even fetch the questions, so a direct
+  // /examen/:id URL can't hand an already-certified student another attempt.
+  const alreadyPassed = enrollment?.testPassed ?? false;
+
   const { data: testData, isLoading: loadingQuestions } = useQuery({
     queryKey: ['test', courseId],
     queryFn: () => testsService.getTest(courseId!),
-    enabled: !!courseId,
+    enabled: !!courseId && !loadingEnrollments && !alreadyPassed,
   });
 
   const questions = testData?.questions ?? [];
@@ -37,6 +49,9 @@ export default function Test() {
   // to the (public) course config while it loads.
   const showExplanations = testData?.showExplanations ?? config?.showExplanations ?? false;
   const timed = testData?.timed ?? config?.timed ?? true;
+  // "Modo juego" replaces the whole taking flow (skill tree, hearts, XP) and
+  // owns its own results screen, so this page only renders its intro.
+  const gameData = testData?.mode === 'game' ? testData : null;
 
   const [state, setState] = useState<TestState>('intro');
   const [currentQ, setCurrentQ] = useState(0);
@@ -78,7 +93,7 @@ export default function Test() {
     return () => clearInterval(timer);
   }, [state, timed, timeLeft]);
 
-  const isLoading = loadingCourse || loadingQuestions;
+  const isLoading = loadingCourse || loadingEnrollments || loadingQuestions;
 
   if (isLoading) {
     return (
@@ -106,6 +121,39 @@ export default function Test() {
     );
   }
 
+  // Already approved — show the standing result instead of a fresh attempt.
+  if (alreadyPassed && state !== 'results') {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-12">
+        <div className="bg-surface-raised rounded-2xl p-8 border border-primary-100/20 shadow-warm-lg text-center">
+          <div className="w-20 h-20 rounded-full bg-success-light flex items-center justify-center mx-auto mb-6">
+            <CheckCircle2 className="w-10 h-10 text-success" />
+          </div>
+          <h1 className="font-display text-2xl font-bold text-ink mb-2">{t('test.alreadyPassedTitle')}</h1>
+          <p className="text-ink-light mb-8">
+            {enrollment?.testScore != null
+              ? t('test.alreadyPassedBody', { score: enrollment.testScore })
+              : t('test.alreadyPassedBodyNoScore')}
+          </p>
+          <div className="flex justify-center gap-4">
+            <Link to="/mi-panel" className="btn-secondary btn-md rounded-xl">
+              {t('test.backToPanel')}
+            </Link>
+            {enrollment?.certificateId && (
+              <Link
+                to={`/certificado/${enrollment.certificateId}`}
+                className="inline-flex items-center gap-2 btn-primary btn-md rounded-xl"
+              >
+                {t('test.viewCertificate')}
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -128,17 +176,19 @@ export default function Test() {
           <h1 className="font-display text-2xl font-bold text-ink mb-2">{t('test.examTitle', { title: course.title })}</h1>
           <p className="text-ink-light mb-6">{t('test.readInstructions')}</p>
 
-          {showExplanations && (
-            <div className="inline-flex items-center gap-2 bg-chocolate-50 text-chocolate rounded-full px-4 py-1.5 mb-6 text-xs font-mono uppercase tracking-wider">
+          {(showExplanations || gameData) && (
+            <div className="inline-flex items-center gap-2 bg-primary-50 text-primary rounded-full px-4 py-1.5 mb-6 text-xs font-mono uppercase tracking-wider">
               <Sparkles className="w-3.5 h-3.5" />
-              {t('test.explanationMode')}
+              {gameData ? t('exam.game.mode') : t('test.explanationMode')}
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-4 mb-8 text-left">
             {[
               { label: t('test.questions'), value: `${questions.length}` },
-              { label: t('test.time'), value: timed ? t('test.minutesValue', { count: config.timeLimit }) : t('test.noLimit') },
+              gameData
+                ? { label: t('exam.game.units'), value: `${gameData.units.length}` }
+                : { label: t('test.time'), value: timed ? t('test.minutesValue', { count: config.timeLimit }) : t('test.noLimit') },
               { label: t('test.attemptsLeft'), value: `${config.maxRetries - attemptsUsed}` },
               { label: t('test.toPass'), value: `${config.passingScore}%` },
             ].map((item, i) => (
@@ -149,14 +199,20 @@ export default function Test() {
             ))}
           </div>
 
-          {showExplanations && (
-            <div className="bg-cream-dark/50 rounded-xl p-4 mb-4 text-left flex gap-3">
-              <Sparkles className="w-5 h-5 text-chocolate shrink-0 mt-0.5" />
+          {showExplanations && !gameData && (
+            <div className="bg-surface-alt/50 rounded-xl p-4 mb-4 text-left flex gap-3">
+              <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" />
               <p className="text-sm text-ink-light">{t('test.explanationHint')}</p>
             </div>
           )}
 
-          {timed ? (
+          {gameData ? (
+            <div className="bg-error-light/40 border border-error/30 rounded-xl p-4 mb-6 text-left">
+              <p className="text-sm text-ink-light">
+                {t('exam.game.rules', { hearts: gameData.gameConfig.hearts })}
+              </p>
+            </div>
+          ) : timed ? (
             <div className="bg-error-light rounded-xl p-4 mb-6 text-left">
               <p className="text-sm text-error font-medium">{t('test.timedWarning')}</p>
             </div>
@@ -170,10 +226,25 @@ export default function Test() {
             onClick={startExam}
             className="btn-primary btn-lg rounded-xl"
           >
-            {t('test.start')}
+            {gameData && attemptsUsed >= 0 && Object.keys(gameData.state.answers).length > 0
+              ? t('exam.game.resume')
+              : t('test.start')}
           </button>
         </div>
       </div>
+    );
+  }
+
+  // Game mode owns everything past the intro — its own run loop and results.
+  if (gameData) {
+    return (
+      <GameExam
+        courseId={courseId!}
+        courseTitle={course.title}
+        passingScore={config.passingScore}
+        data={gameData}
+        onFinished={() => setState('results')}
+      />
     );
   }
 
@@ -276,9 +347,9 @@ export default function Test() {
 
         {/* Question */}
         {question && (
-          <div className="bg-parchment rounded-2xl p-8 border border-chocolate-100/20 shadow-warm">
-            <span className="text-xs font-semibold text-gold uppercase tracking-wider">
-              {question.type === 'true-false' ? t('test.trueFalse') : t('test.multipleChoice')}
+          <div className="bg-surface-raised rounded-2xl p-8 border border-primary-100/20 shadow-warm">
+            <span className="text-xs font-semibold text-highlight uppercase tracking-wider">
+              {question.type === 'tf' ? t('test.trueFalse') : t('test.multipleChoice')}
             </span>
             <h2 className="font-display text-xl font-bold text-ink mt-2 mb-6">{question.text}</h2>
 
@@ -313,7 +384,7 @@ export default function Test() {
                           ? 'border-success bg-success text-white'
                           : isWrongPick
                             ? 'border-error bg-error text-white'
-                            : 'border-chocolate-100/40 text-ink-light'
+                            : 'border-border text-ink-light'
                       }`}>
                         {String.fromCharCode(65 + i)}
                       </span>
@@ -407,9 +478,9 @@ export default function Test() {
 
       {/* Question */}
       {question && (
-        <div className="bg-parchment rounded-2xl p-8 border border-chocolate-100/20 shadow-warm">
-          <span className="text-xs font-semibold text-gold uppercase tracking-wider">
-            {question.type === 'true-false' ? t('test.trueFalse') : t('test.multipleChoice')}
+        <div className="bg-surface-raised rounded-2xl p-8 border border-primary-100/20 shadow-warm">
+          <span className="text-xs font-semibold text-highlight uppercase tracking-wider">
+            {question.type === 'tf' ? t('test.trueFalse') : t('test.multipleChoice')}
           </span>
           <h2 className="font-display text-xl font-bold text-ink mt-2 mb-6">{question.text}</h2>
 
@@ -429,8 +500,8 @@ export default function Test() {
                   <div className="flex items-center gap-3">
                     <span className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs font-bold ${
                       selected
-                        ? 'border-chocolate bg-chocolate text-cream'
-                        : 'border-chocolate-100/40 text-ink-light'
+                        ? 'border-primary bg-primary text-surface'
+                        : 'border-border text-ink-light'
                     }`}>
                       {String.fromCharCode(65 + i)}
                     </span>

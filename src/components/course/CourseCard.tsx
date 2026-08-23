@@ -7,6 +7,7 @@ import { itemPriceView } from '@/utils/pricing';
 import { useLanguage } from '@/context/LanguageContext';
 import StarRating from '@/components/ui/StarRating';
 import CourseImage from '@/components/ui/CourseImage';
+import CourseStatusBadge from '@/components/course/CourseStatusBadge';
 
 interface CourseCardProps {
   course: Course;
@@ -28,6 +29,9 @@ export default function CourseCard({ course }: CourseCardProps) {
           alt={course.title}
           className="transition-transform duration-500 group-hover:scale-105"
         />
+        {course.availability && (
+          <CourseStatusBadge availability={course.availability} className="absolute top-3 left-3 z-10" />
+        )}
         {course.discountLabel && (
           <span className="absolute top-3 right-3 bg-error text-cream text-xs font-bold px-2.5 py-1 rounded-full">
             {course.discountLabel}
@@ -50,19 +54,23 @@ export default function CourseCard({ course }: CourseCardProps) {
             <Clock className="w-3.5 h-3.5" />
             {course.duration}
           </span>
-          <span className="flex items-center gap-1">
-            <BookOpen className="w-3.5 h-3.5" />
-            {course.modules?.length ?? 0} {t('courseCard.modules')}
-          </span>
-          <span className="flex items-center gap-1">
-            <Users className="w-3.5 h-3.5" />
-            {course.studentCount}
-          </span>
+          {(course.modules?.length ?? 0) > 0 && (
+            <span className="flex items-center gap-1">
+              <BookOpen className="w-3.5 h-3.5" />
+              {course.modules.length} {t('courseCard.modules')}
+            </span>
+          )}
+          {course.studentCount > 0 && (
+            <span className="flex items-center gap-1">
+              <Users className="w-3.5 h-3.5" />
+              {course.studentCount}
+            </span>
+          )}
         </div>
 
         {/* Rating + Price */}
-        <div className="flex items-center justify-between pt-3 border-t border-chocolate-100/30">
-          <StarRating rating={course.rating} size="sm" showValue />
+        <div className="flex items-center justify-between pt-3 border-t border-primary-100/30">
+          {course.reviewCount > 0 ? <StarRating rating={course.rating} size="sm" showValue /> : <span />}
           <div className="text-right">
             {pv.compareAt != null ? (
               <>

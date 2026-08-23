@@ -50,9 +50,19 @@ export default function FlashcardDeck({ cards }: FlashcardDeckProps) {
   if (total === 0) return null;
   const card = cards[index];
 
+  // `backface-visibility: hidden` alone is not enough to hide the face that is
+  // turned away: the moment the browser flattens the 3D context, both faces
+  // paint on top of each other (question mirrored over the answer). So the
+  // faces are also hard-swapped the instant the card passes 90°, where it is
+  // edge-on and the swap itself is invisible. `ease-out` reaches its half-way
+  // *value* at 20% of the duration, so that instant is 100ms into the 500ms
+  // flip — not the 250ms wall-clock midpoint.
   const faceBase =
-    'absolute inset-0 backface-hidden rounded-2xl border border-chocolate-100/40 bg-cream-dark/60 ' +
-    'p-6 flex flex-col group-focus-visible:ring-2 group-focus-visible:ring-chocolate';
+    'absolute inset-0 backface-hidden rounded-2xl border border-primary-100/30 bg-surface-alt/60 ' +
+    'p-6 flex flex-col group-focus-visible:ring-2 group-focus-visible:ring-primary ' +
+    'transition-[opacity,visibility] duration-0 delay-[100ms] motion-reduce:delay-0';
+  const faceShown = 'opacity-100 visible';
+  const faceHidden = 'opacity-0 invisible';
 
   return (
     <div>
@@ -72,7 +82,7 @@ export default function FlashcardDeck({ cards }: FlashcardDeckProps) {
           } ${slideDir === 'right' ? 'flashcard-in-right' : slideDir === 'left' ? 'flashcard-in-left' : ''}`}
         >
           {/* Front — question */}
-          <div className={faceBase} aria-hidden={flipped}>
+          <div className={`${faceBase} ${flipped ? faceHidden : faceShown}`} aria-hidden={flipped}>
             <div className="flex items-center justify-between">
               <span className="text-xs tracking-[0.2em] text-ink-light tabular-nums">
                 {index + 1} / {total}
@@ -93,7 +103,7 @@ export default function FlashcardDeck({ cards }: FlashcardDeckProps) {
           </div>
 
           {/* Back — answer */}
-          <div className={`${faceBase} rotate-y-180`} aria-hidden={!flipped}>
+          <div className={`${faceBase} rotate-y-180 ${flipped ? faceShown : faceHidden}`} aria-hidden={!flipped}>
             <div className="flex items-center justify-between">
               <span className="text-xs tracking-[0.2em] text-ink-light tabular-nums">
                 {index + 1} / {total}

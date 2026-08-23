@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import {
-  Clock, Users, BookOpen, Award, ShieldCheck, Lock, Play, Star,
+  Clock, Users, BookOpen, Award, ShieldCheck, Lock, Maximize2, Star,
   FileText, ChevronDown, ChevronUp, ArrowRight, CheckCircle2, Loader2, Send, Link2, Layers,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -10,10 +10,15 @@ import { coursesService } from '@/services/courses';
 import { enrollmentsService } from '@/services/enrollments';
 import { paymentsService } from '@/services/payments';
 import CourseImage from '@/components/ui/CourseImage';
+import ImageLightbox from '@/components/ui/ImageLightbox';
 import ModuleVideoPreview from '@/components/ui/ModuleVideoPreview';
 import { reviewsService } from '@/services/reviews';
 import { formatPrice, formatDate } from '@/utils/format';
 import { itemPriceView } from '@/utils/pricing';
+import { promoPriceView, usePromoCheckout } from '@/hooks/usePromoCheckout';
+import { promoCodesService } from '@/services/promoCodes';
+import { localizePromoError } from '@/i18n/errors';
+import PromoCodeField from '@/components/checkout/PromoCodeField';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
@@ -41,6 +46,20 @@ export default function CourseDetail() {
 
   const isEnrolled = enrollments.some(e => e.courseId === course?.id);
   const [enrolling, setEnrolling] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const promo = usePromoCheckout();
+
+  /**
+   * Enrolling changes what the course endpoints return, not just the
+   * enrolment list: `/courses` only includes module videos for viewers with
+   * access. Refreshing `['enrollments']` alone leaves the pre-enrolment course
+   * payload cached, and the player then reports the course has no video until
+   * `staleTime` lapses or the page is reloaded.
+   */
+  const invalidateAfterEnrollment = () => {
+    queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+    queryClient.invalidateQueries({ queryKey: ['courses'] });
+  };
 
   const handleEnroll = async () => {
     if (!isAuthenticated) {
@@ -53,6 +72,26 @@ export default function CourseDetail() {
       return;
     }
 
+    // A code that covers the whole price is redeemed, not paid — neither
+    // gateway accepts a zero unit price.
+    if (promo.quote?.free) {
+      setEnrolling(true);
+      try {
+        await promoCodesService.redeem({
+          courseId: course!.id,
+          code: promo.quote.code,
+          currency: promo.quote.currency,
+        });
+        invalidateAfterEnrollment();
+        toast.success(t('courseDetail.enrollSuccess'));
+      } catch (err) {
+        toast.error(localizePromoError(err, t));
+      } finally {
+        setEnrolling(false);
+      }
+      return;
+    }
+
     const effectivePrice = course!.discountPrice ?? course!.price;
 
     // Free course → direct enrollment
@@ -60,12 +99,12 @@ export default function CourseDetail() {
       setEnrolling(true);
       try {
         await enrollmentsService.createEnrollment(course!.id);
-        queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+        invalidateAfterEnrollment();
         toast.success(t('courseDetail.enrollSuccess'));
       } catch (err: unknown) {
         const error = err as { status?: number };
         if (error.status === 409) {
-          queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+          invalidateAfterEnrollment();
           toast.success(t('courseDetail.alreadyEnrolled'));
         } else {
           toast.error(t('courseDetail.enrollError'));
@@ -80,16 +119,24 @@ export default function CourseDetail() {
     setEnrolling(true);
     try {
       if (currency === 'USD' && (course!.discountPriceUsd ?? course!.priceUsd)) {
-        const { checkoutUrl } = await paymentsService.createLemonCheckout({ courseId: course!.id });
+        const { checkoutUrl } = await paymentsService.createLemonCheckout({
+          courseId: course!.id,
+          promoCode: promo.promoCode,
+        });
         window.location.href = checkoutUrl;
       } else {
-        const { initPoint } = await paymentsService.createPreference({ courseId: course!.id });
+        const { initPoint } = await paymentsService.createPreference({
+          courseId: course!.id,
+          promoCode: promo.promoCode,
+        });
         window.location.href = initPoint;
       }
     } catch (err: unknown) {
       const error = err as { status?: number; message?: string };
       if (error.status === 503 && error.message === 'mercadopago_not_connected') {
         toast.error(t('courseDetail.paymentUpdating'));
+      } else if (err instanceof Error && promo.promoCode) {
+        toast.error(localizePromoError(err, t));
       } else {
         toast.error(t('courseDetail.paymentError'));
       }
@@ -191,8 +238,12 @@ export default function CourseDetail() {
 
   const pv = itemPriceView(currency, course);
   const intlUnavailable = currency === 'USD' && !pv.usdAvailable;
+  // An applied code overrides the headline price and struck-through reference.
+  const shownPrice = promoPriceView(pv, promo.quote);
 
   const fileIcon: Record<string, string> = { pdf: 'PDF', docx: 'DOC', pptx: 'PPT', xlsx: 'XLS' };
+
+  const tocItems = (course.tableOfContents ?? []).filter(item => item.trim().length > 0);
 
   return (
     <div>
@@ -209,40 +260,75 @@ export default function CourseDetail() {
 
               <div className="flex flex-wrap items-center gap-4 text-sm text-ink-light mb-6">
                 <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" />{course.duration}</span>
-                <span className="flex items-center gap-1.5"><BookOpen className="w-4 h-4" />{course.modules?.length ?? 0} {t('courseDetail.modules')}</span>
-                <span className="flex items-center gap-1.5"><Users className="w-4 h-4" />{course.studentCount} {t('courseDetail.students')}</span>
-                {course.hasCertificate && <span className="flex items-center gap-1.5"><Award className="w-4 h-4 text-gold" />{t('courseDetail.withCertificate')}</span>}
+                {(course.modules?.length ?? 0) > 0 && (
+                  <span className="flex items-center gap-1.5"><BookOpen className="w-4 h-4" />{course.modules.length} {t('courseDetail.modules')}</span>
+                )}
+                {course.studentCount > 0 && (
+                  <span className="flex items-center gap-1.5"><Users className="w-4 h-4" />{course.studentCount} {t('courseDetail.students')}</span>
+                )}
+                {course.hasCertificate && <span className="flex items-center gap-1.5"><Award className="w-4 h-4 text-highlight" />{t('courseDetail.withCertificate')}</span>}
               </div>
 
-              <div className="flex items-center gap-3">
-                <StarRating rating={course.rating} showValue />
-                <span className="text-sm text-ink-light">({course.reviewCount} {t('courseDetail.reviewsCount')})</span>
-              </div>
+              {course.reviewCount > 0 && (
+                <div className="flex items-center gap-3">
+                  <StarRating rating={course.rating} showValue />
+                  <span className="text-sm text-ink-light">({course.reviewCount} {t('courseDetail.reviewsCount')})</span>
+                </div>
+              )}
             </div>
 
             {/* Price Card */}
-            <div className="bg-parchment rounded-2xl shadow-warm-lg p-6 border border-chocolate-100/20 self-start">
-              <div className="relative aspect-video rounded-xl overflow-hidden mb-5">
-                <CourseImage src={course.imageUrl} alt={course.title} />
-                <div className="absolute inset-0 bg-ink/30 flex items-center justify-center">
-                  <div className="w-14 h-14 rounded-full bg-cream/90 flex items-center justify-center">
-                    <Play className="w-6 h-6 text-chocolate ml-0.5" />
+            <div className="bg-surface-raised rounded-2xl shadow-warm-lg p-6 border border-primary-100/20 self-start">
+              {course.imageUrl ? (
+                <button
+                  type="button"
+                  onClick={() => setLightboxOpen(true)}
+                  aria-label="Ampliar imagen del curso"
+                  className="group relative block w-full aspect-video rounded-xl overflow-hidden mb-5 cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                >
+                  <CourseImage
+                    src={course.imageUrl}
+                    alt={course.title}
+                    className="transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-ink/20 group-hover:bg-ink/40 flex items-center justify-center transition-colors">
+                    <div className="w-14 h-14 rounded-full bg-surface/90 flex items-center justify-center shadow-warm transition-transform group-hover:scale-110">
+                      <Maximize2 className="w-5 h-5 text-primary" />
+                    </div>
                   </div>
+                </button>
+              ) : (
+                <div className="relative aspect-video rounded-xl overflow-hidden mb-5">
+                  <CourseImage src={course.imageUrl} alt={course.title} />
                 </div>
-              </div>
+              )}
               <div className="mb-4">
-                {pv.compareAt != null ? (
+                {shownPrice.compareAt != null ? (
                   <div className="flex items-baseline gap-3">
-                    <span className="font-display text-3xl font-bold text-chocolate">{formatPrice(pv.amount, pv.currency)}</span>
-                    <span className="text-lg text-ink-light line-through">{formatPrice(pv.compareAt, pv.currency)}</span>
-                    {course.discountLabel && (
+                    <span className="font-display text-3xl font-bold text-primary">
+                      {shownPrice.amount === 0 ? t('promo.freeWithCode') : formatPrice(shownPrice.amount, shownPrice.currency)}
+                    </span>
+                    <span className="text-lg text-ink-light line-through">{formatPrice(shownPrice.compareAt, shownPrice.currency)}</span>
+                    {course.discountLabel && !promo.quote && (
                       <span className="text-xs font-bold text-error bg-error-light px-2 py-0.5 rounded-full">{course.discountLabel}</span>
                     )}
                   </div>
                 ) : (
-                  <span className="font-display text-3xl font-bold text-chocolate">{formatPrice(pv.amount, pv.currency)}</span>
+                  <span className="font-display text-3xl font-bold text-primary">{formatPrice(shownPrice.amount, shownPrice.currency)}</span>
                 )}
               </div>
+
+              {/* Promo / referral code — hidden once the student already owns it */}
+              {!isEnrolled && role !== 'teacher' && course.availability === 'Disponible' && (
+                <div className="mb-4">
+                  <PromoCodeField
+                    item={{ courseId: course.id }}
+                    quote={promo.quote}
+                    onQuote={promo.setQuote}
+                    initialCode={promo.initialCode}
+                  />
+                </div>
+              )}
 
               {role === 'student' && isEnrolled ? (
                 <Link
@@ -340,13 +426,25 @@ export default function CourseDetail() {
             <div>
               <h2 className="font-display text-2xl font-bold text-ink mb-4 gold-underline">{t('courseDetail.courseContent')}</h2>
               <p className="text-sm text-ink-light mb-6 mt-6">
-                {t('courseDetail.contentMeta', { count: course.modules?.length ?? 0, duration: course.duration })}
+                {(course.modules?.length ?? 0) > 0 && `${t('courseDetail.moduleCount', { count: course.modules.length })} · `}
+                {t('courseDetail.durationMeta', { duration: course.duration })}
               </p>
               <div className="space-y-3">
                 {course.modules.map(mod => {
                   const isOpen = expandedModule === mod.id;
                   const videoCount = (mod.videos?.length ?? 0) > 0 ? mod.videos.length : (mod.videoCount ?? 0);
                   const flashcardCount = (mod.flashcards?.length ?? 0) > 0 ? mod.flashcards!.length : (mod.flashcardCount ?? 0);
+                  const materialCount = mod.materials.length;
+                  const linkCount = (mod.links ?? []).length;
+                  // Students only see metrics that carry content — a "0 videos"
+                  // line is noise for them (the teacher still sees zeros in the
+                  // course manager as a reminder that something may be missing).
+                  const metricParts: string[] = [];
+                  if (mod.videoDuration) metricParts.push(mod.videoDuration);
+                  if (videoCount > 0) metricParts.push(t('courseDetail.videoCount', { count: videoCount }));
+                  if (materialCount > 0) metricParts.push(t('courseDetail.materialCount', { count: materialCount }));
+                  if (linkCount > 0) metricParts.push(t('courseDetail.linkCount', { count: linkCount }));
+                  if (flashcardCount > 0) metricParts.push(t('courseDetail.cardCount', { count: flashcardCount }));
                   return (
                     <div
                       key={mod.id}
@@ -367,10 +465,7 @@ export default function CourseDetail() {
                           <div>
                             <span className="text-sm font-semibold text-ink block">{mod.title}</span>
                             <span className="text-xs text-ink-light">
-                              {mod.videoDuration && `${mod.videoDuration} · `}
-                              {t('courseDetail.videoCount', { count: videoCount })} · {t('courseDetail.materialCount', { count: mod.materials.length })}
-                              {(mod.links ?? []).length > 0 && ` · ${t('courseDetail.linkCount', { count: mod.links!.length })}`}
-                              {flashcardCount > 0 && ` · ${t('courseDetail.cardCount', { count: flashcardCount })}`}
+                              {metricParts.join(' · ')}
                               {mod.isFree && <span className="text-success font-semibold ml-2">{t('courseDetail.free')}</span>}
                             </span>
                           </div>
@@ -574,21 +669,23 @@ export default function CourseDetail() {
           {/* Sidebar TOC */}
           <div className="hidden lg:block">
             <div className="sticky top-24">
-              <div className="bg-parchment rounded-xl p-6 border border-chocolate-100/20 shadow-warm">
-                <h3 className="font-display text-lg font-bold text-ink mb-4">{t('courseDetail.toc')}</h3>
-                <ol className="space-y-2">
-                  {course.tableOfContents.map((item, i) => (
-                    <li key={i} className="flex items-start gap-2.5 text-sm text-ink-light">
-                      <span className="w-5 h-5 rounded-full bg-chocolate-50 text-chocolate text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
-                        {i + 1}
-                      </span>
-                      {item}
-                    </li>
-                  ))}
-                </ol>
-              </div>
+              {tocItems.length > 0 && (
+                <div className="bg-surface-raised rounded-xl p-6 border border-primary-100/20 shadow-warm">
+                  <h3 className="font-display text-lg font-bold text-ink mb-4">{t('courseDetail.toc')}</h3>
+                  <ol className="space-y-2">
+                    {tocItems.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2.5 text-sm text-ink-light">
+                        <span className="w-5 h-5 rounded-full bg-primary-50 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                          {i + 1}
+                        </span>
+                        {item}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
 
-              <div className="mt-6 text-center">
+              <div className={tocItems.length > 0 ? 'mt-6 text-center' : 'text-center'}>
                 <Link
                   to="/cursos"
                   className="inline-flex items-center gap-1 text-sm text-chocolate font-medium hover:text-chocolate-dark transition-colors"
@@ -601,6 +698,14 @@ export default function CourseDetail() {
           </div>
         </div>
       </div>
+
+      {lightboxOpen && course.imageUrl && (
+        <ImageLightbox
+          src={course.imageUrl}
+          alt={course.title}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
     </div>
   );
 }

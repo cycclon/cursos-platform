@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BookOpen, User, Mail, Lock, AlertCircle, Loader2, MailCheck, Info } from 'lucide-react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { localizeApiError } from '@/i18n/errors';
+import { postLoginDestination } from '@/utils/promoSession';
 
 const GMAIL_DOMAINS = new Set(['gmail.com', 'googlemail.com']);
 
@@ -16,10 +17,12 @@ function isGmailAddress(email: string): boolean {
 
 export default function Register() {
   const { isAuthenticated, loginWithGoogle, register, role } = useAuth();
+  const location = useLocation();
   const { t } = useTranslation();
   const { language } = useLanguage();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [confirmEmail, setConfirmEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -29,8 +32,7 @@ export default function Register() {
   const isGmail = useMemo(() => isGmailAddress(email), [email]);
 
   if (isAuthenticated) {
-    const dest = role === 'teacher' ? '/admin/panel' : role === 'superuser' ? '/superusuario' : '/mi-panel';
-    return <Navigate to={dest} replace />;
+    return <Navigate to={postLoginDestination(role, location.search)} replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,6 +41,11 @@ export default function Register() {
 
     if (isGmail) {
       setError(t('errors.GMAIL_USE_GOOGLE'));
+      return;
+    }
+
+    if (email.trim().toLowerCase() !== confirmEmail.trim().toLowerCase()) {
+      setError(t('auth.emailsDontMatch'));
       return;
     }
 
@@ -168,6 +175,24 @@ export default function Register() {
                           ? 'border-chocolate/40 focus:border-chocolate/60 focus:ring-chocolate/20'
                           : 'border-chocolate-100/40 focus:border-chocolate/40 focus:ring-chocolate/10'
                       }`}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="confirmEmail" className="block text-sm font-medium text-ink mb-1.5">{t('auth.confirmEmail')}</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-light/60" />
+                    <input
+                      id="confirmEmail"
+                      type="email"
+                      required
+                      autoComplete="off"
+                      value={confirmEmail}
+                      onChange={e => setConfirmEmail(e.target.value)}
+                      onPaste={e => e.preventDefault()}
+                      placeholder={t('auth.confirmEmailPlaceholder')}
+                      disabled={isGmail}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-chocolate-100/40 bg-parchment text-sm text-ink placeholder:text-ink-light/60 focus:outline-none focus:border-chocolate/40 focus:ring-2 focus:ring-chocolate/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>

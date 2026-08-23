@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import {
   DollarSign, Users, BookOpen, TrendingUp, Calculator,
   AlertCircle, Settings, GraduationCap, Plus, Trash2,
-  Crown, Loader2,
+  Crown, Loader2, Ticket, ArrowRight,
 } from 'lucide-react';
 import { coursesService } from '@/services/courses';
 import { statisticsService } from '@/services/statistics';
+import { promoCodesService } from '@/services/promoCodes';
 import { superuserService, type TeacherEntry } from '@/services/superuser';
 import { formatPrice } from '@/utils/format';
 import { useToast } from '@/context/ToastContext';
@@ -41,6 +43,11 @@ export default function SuperuserPanel() {
     queryFn: statisticsService.getSalesData,
   });
 
+  const { data: promoCodes = [] } = useQuery({
+    queryKey: ['promo-codes'],
+    queryFn: promoCodesService.list,
+  });
+
   const isLoading = loadingCourses || loadingSales;
 
   if (isLoading) {
@@ -61,11 +68,19 @@ export default function SuperuserPanel() {
     );
   }
 
+  // `revenue` is what was actually charged, already net of promo/referral
+  // discounts — so it is the fee base, and a 100%-off sale bills nothing.
   const totalRevenue = salesData.reduce((sum, d) => sum + d.revenue, 0);
   const totalStudents = courses.reduce((sum, c) => sum + c.studentCount, 0);
   const totalSales = salesData.reduce((sum, d) => sum + d.sales, 0);
+  const totalDiscount = salesData.reduce((sum, d) => sum + (d.discountTotal ?? 0), 0);
+  const totalCommission = salesData.reduce((sum, d) => sum + (d.commissionTotal ?? 0), 0);
 
   const lastMonth = salesData[salesData.length - 1];
+
+  const codeUses = promoCodes.reduce((sum, c) => sum + c.uses, 0);
+  const commissionPending = promoCodes.reduce((sum, c) => sum + c.commissionPendingArs, 0);
+  const activeCodes = promoCodes.filter(c => c.active && !c.expired && !c.exhausted).length;
 
   const calculateFee = (revenue: number) => {
     if (feeType === 'percentage') return revenue * (feeValue / 100);
@@ -265,6 +280,48 @@ export default function SuperuserPanel() {
         )}
       </div>
 
+      {/* Promo & referral codes */}
+      <div className="bg-surface-raised rounded-xl p-6 border-2 border-error/10 shadow-warm mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <Ticket className="w-5 h-5 text-error" />
+            <h2 className="font-display text-lg font-bold text-ink">Códigos</h2>
+          </div>
+          <Link
+            to="/superusuario/codigos"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-error hover:underline"
+          >
+            Administrar
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        {promoCodes.length === 0 ? (
+          <p className="text-sm text-ink-light text-center py-6">
+            Todavía no hay códigos promocionales ni de referido.
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: 'Códigos vigentes', value: String(activeCodes), sub: `${promoCodes.length} en total` },
+              { label: 'Usos registrados', value: String(codeUses), sub: 'Ventas con código' },
+              { label: 'Descuento otorgado', value: formatPrice(totalDiscount), sub: 'Ya descontado de la base' },
+              {
+                label: 'Comisión a referentes',
+                value: formatPrice(commissionPending),
+                sub: 'Pendiente de pago',
+              },
+            ].map((stat, i) => (
+              <div key={i} className="p-4 rounded-xl bg-surface-alt/50">
+                <p className="text-lg font-bold text-ink tabular-nums">{stat.value}</p>
+                <p className="text-xs text-ink-light mt-0.5">{stat.label}</p>
+                <p className="text-[10px] text-ink-light/60 mt-1">{stat.sub}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Fee calculator */}
       <div className="bg-parchment rounded-xl p-6 border-2 border-error/10 shadow-warm mb-8">
         <div className="flex items-center gap-2 mb-6">
@@ -317,6 +374,13 @@ export default function SuperuserPanel() {
                 La comisión no se descuenta automáticamente de los pagos de Mercado Pago. Este cálculo es solo informativo para la facturación mensual.
               </p>
             </div>
+            <div className="bg-surface-alt/60 rounded-lg p-3">
+              <p className="text-xs text-ink-light">
+                La base de cálculo es lo <strong className="text-ink">efectivamente cobrado</strong>: los
+                descuentos por código ya están restados (un código del 100% factura $0). Las comisiones a
+                referentes <strong className="text-ink">no</strong> se restan de la base — las paga la academia.
+              </p>
+            </div>
           </div>
 
           {/* Results */}
@@ -354,37 +418,66 @@ export default function SuperuserPanel() {
       <div className="bg-parchment rounded-xl border border-chocolate-100/20 shadow-warm overflow-hidden">
         <div className="p-6 pb-0">
           <h2 className="font-display text-lg font-bold text-ink mb-1">Detalle mensual</h2>
-          <p className="text-xs text-ink-light">Desglose completo de ventas, ingresos y comisiones.</p>
+          <p className="text-xs text-ink-light">
+            Desglose completo en pesos. “Base” es lo cobrado tras los descuentos y es sobre lo que se calcula la comisión.
+          </p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-chocolate-100/20">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Mes</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Ventas</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Estudiantes</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Ingresos</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Comisión</th>
+              <tr className="border-b border-primary-100/20">
+                <th className="text-left px-5 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Mes</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Ventas</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Estudiantes</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Bruto</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Descuentos</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Base</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Referentes</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-ink-light uppercase tracking-wider">Comisión</th>
               </tr>
             </thead>
             <tbody>
-              {salesData.map(d => (
-                <tr key={d.month} className="border-b border-chocolate-100/10 hover:bg-cream-dark/30 transition-colors">
-                  <td className="px-6 py-3 font-medium text-ink">{d.month}</td>
-                  <td className="px-6 py-3 text-right text-ink-light">{d.sales}</td>
-                  <td className="px-6 py-3 text-right text-ink-light">{d.students}</td>
-                  <td className="px-6 py-3 text-right font-semibold text-ink">{formatPrice(d.revenue)}</td>
-                  <td className="px-6 py-3 text-right font-semibold text-error">{formatPrice(calculateFee(d.revenue))}</td>
-                </tr>
-              ))}
+              {salesData.map(d => {
+                const discount = d.discountTotal ?? 0;
+                const commission = d.commissionTotal ?? 0;
+                return (
+                  <tr key={d.month} className="border-b border-primary-100/10 hover:bg-surface-alt/30 transition-colors">
+                    <td className="px-5 py-3 font-medium text-ink whitespace-nowrap">{d.month}</td>
+                    <td className="px-5 py-3 text-right text-ink-light tabular-nums">{d.sales}</td>
+                    <td className="px-5 py-3 text-right text-ink-light tabular-nums">{d.students}</td>
+                    <td className="px-5 py-3 text-right text-ink-light tabular-nums">
+                      {formatPrice(d.listRevenue ?? d.revenue)}
+                    </td>
+                    <td className={`px-5 py-3 text-right tabular-nums ${discount > 0 ? 'text-highlight-dark' : 'text-ink-light/50'}`}>
+                      {discount > 0 ? `−${formatPrice(discount)}` : '—'}
+                    </td>
+                    <td className="px-5 py-3 text-right font-semibold text-ink tabular-nums">{formatPrice(d.revenue)}</td>
+                    <td className={`px-5 py-3 text-right tabular-nums ${commission > 0 ? 'text-ink-light' : 'text-ink-light/50'}`}>
+                      {commission > 0 ? formatPrice(commission) : '—'}
+                    </td>
+                    <td className="px-5 py-3 text-right font-semibold text-error tabular-nums">{formatPrice(calculateFee(d.revenue))}</td>
+                  </tr>
+                );
+              })}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-chocolate-100/30 bg-cream-dark/30">
-                <td className="px-6 py-3 font-bold text-ink">Total anual</td>
-                <td className="px-6 py-3 text-right font-bold text-ink">{totalSales}</td>
-                <td className="px-6 py-3 text-right font-bold text-ink">{salesData.reduce((s, d) => s + d.students, 0)}</td>
-                <td className="px-6 py-3 text-right font-bold text-ink">{formatPrice(totalRevenue)}</td>
-                <td className="px-6 py-3 text-right font-bold text-error">
+              <tr className="border-t-2 border-primary-100/30 bg-surface-alt/30">
+                <td className="px-5 py-3 font-bold text-ink">Total anual</td>
+                <td className="px-5 py-3 text-right font-bold text-ink tabular-nums">{totalSales}</td>
+                <td className="px-5 py-3 text-right font-bold text-ink tabular-nums">
+                  {salesData.reduce((s, d) => s + d.students, 0)}
+                </td>
+                <td className="px-5 py-3 text-right font-bold text-ink tabular-nums">
+                  {formatPrice(salesData.reduce((s, d) => s + (d.listRevenue ?? d.revenue), 0))}
+                </td>
+                <td className="px-5 py-3 text-right font-bold text-highlight-dark tabular-nums">
+                  {totalDiscount > 0 ? `−${formatPrice(totalDiscount)}` : '—'}
+                </td>
+                <td className="px-5 py-3 text-right font-bold text-ink tabular-nums">{formatPrice(totalRevenue)}</td>
+                <td className="px-5 py-3 text-right font-bold text-ink tabular-nums">
+                  {totalCommission > 0 ? formatPrice(totalCommission) : '—'}
+                </td>
+                <td className="px-5 py-3 text-right font-bold text-error tabular-nums">
                   {formatPrice(salesData.reduce((sum, d) => sum + calculateFee(d.revenue), 0))}
                 </td>
               </tr>

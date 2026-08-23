@@ -15,6 +15,10 @@ import { useToast } from '@/context/ToastContext';
 import { formatPrice, formatDateTime } from '@/utils/format';
 import { bundlePriceView } from '@/utils/pricing';
 import { bundleCapacityStatus } from '@/utils/capacity';
+import { promoPriceView, usePromoCheckout } from '@/hooks/usePromoCheckout';
+import { promoCodesService } from '@/services/promoCodes';
+import { localizePromoError } from '@/i18n/errors';
+import PromoCodeField from '@/components/checkout/PromoCodeField';
 import { bundleAvailability, bundleAvailabilityReason } from '@/utils/bundleAvailability';
 import { CapacityBadge } from '@/components/ui/CapacityBadge';
 import { AvailabilityBadge } from '@/components/ui/AvailabilityBadge';
@@ -47,6 +51,7 @@ export default function BundleDetail() {
 
   const [enrolling, setEnrolling] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const promo = usePromoCheckout();
 
   const { data: bundle, isLoading: loadingBundle } = useQuery({
     queryKey: ['bundles', slug],
@@ -83,7 +88,30 @@ export default function BundleDetail() {
       return;
     }
 
-    // Free bundle → direct enrollment + workshop registrations
+    // A code that covers the whole price is redeemed, not paid — neither
+    // gateway accepts a zero unit price. One redemption enrols every course
+    // and taller in the combo (fulfillPayment handles the fan-out).
+    if (promo.quote?.free) {
+      setEnrolling(true);
+      try {
+        await promoCodesService.redeem({
+          bundleId: bundle!.id,
+          code: promo.quote.code,
+          currency: promo.quote.currency,
+        });
+        queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+        queryClient.invalidateQueries({ queryKey: ['courses'] });
+        toast.success(t('bundles.enrollSuccess'));
+        setShowConfirm(false);
+      } catch (err) {
+        toast.error(localizePromoError(err, t));
+      } finally {
+        setEnrolling(false);
+      }
+      return;
+    }
+
+    // Free bundle → direct enrollment
     if (bundle!.price === 0) {
       setEnrolling(true);
       try {
@@ -111,15 +139,23 @@ export default function BundleDetail() {
     setEnrolling(true);
     try {
       if (currency === 'USD' && bundle!.priceUsd) {
-        const { checkoutUrl } = await paymentsService.createLemonCheckout({ bundleId: bundle!.id });
+        const { checkoutUrl } = await paymentsService.createLemonCheckout({
+          bundleId: bundle!.id,
+          promoCode: promo.promoCode,
+        });
         window.location.href = checkoutUrl;
       } else {
-        const { initPoint } = await paymentsService.createPreference({ bundleId: bundle!.id });
+        const { initPoint } = await paymentsService.createPreference({
+          bundleId: bundle!.id,
+          promoCode: promo.promoCode,
+        });
         window.location.href = initPoint;
       }
     } catch (err: unknown) {
-      const error = err as { status?: number; message?: string };
-      if (error.status === 503 && error.message === 'mercadopago_not_connected') {
+      const error = err as { status?: number; message?: string; code?: string };
+      if (error.code?.startsWith('promo_')) {
+        toast.error(localizePromoError(err, t));
+      } else if (error.status === 503 && error.message === 'mercadopago_not_connected') {
         toast.error(t('bundles.paymentUpdating'));
       } else if (error.message === 'bundle_course_not_available') {
         toast.error(t('bundles.courseUnavailable'));
@@ -159,6 +195,8 @@ export default function BundleDetail() {
   const totalModules = bundleCourses.reduce((sum, c) => sum + (c.modules?.length ?? 0), 0);
   const pv = bundlePriceView(currency, bundle);
   const intlUnavailable = currency === 'USD' && !pv.usdAvailable;
+  // An applied code overrides the headline price and struck-through reference.
+  const shownPrice = promoPriceView(pv, promo.quote);
   const savings = pv.compareAt != null ? pv.compareAt - pv.amount : 0;
   const capacityStatus = bundleCapacityStatus(bundleWorkshops);
   const isSoldOut = capacityStatus.kind === 'sold_out';
@@ -216,15 +254,28 @@ export default function BundleDetail() {
               </div>
               <div className="mb-4">
                 <div className="flex items-baseline gap-3">
-                  <span className="font-display text-3xl font-bold text-chocolate">{formatPrice(pv.amount, pv.currency)}</span>
-                  {pv.compareAt != null && (
-                    <span className="text-lg text-ink-light line-through">{formatPrice(pv.compareAt, pv.currency)}</span>
+                  <span className="font-display text-3xl font-bold text-primary">
+                    {shownPrice.amount === 0 ? t('promo.freeWithCode') : formatPrice(shownPrice.amount, shownPrice.currency)}
+                  </span>
+                  {shownPrice.compareAt != null && (
+                    <span className="text-lg text-ink-light line-through">{formatPrice(shownPrice.compareAt, shownPrice.currency)}</span>
                   )}
                 </div>
-                {savings > 0 && (
+                {savings > 0 && !promo.quote && (
                   <p className="text-success font-semibold text-sm mt-1">{t('bundles.youSave', { amount: formatPrice(savings, pv.currency) })}</p>
                 )}
               </div>
+
+              {!allEnrolled && !isUnavailable && (
+                <div className="mb-4">
+                  <PromoCodeField
+                    item={{ bundleId: bundle.id }}
+                    quote={promo.quote}
+                    onQuote={promo.setQuote}
+                    initialCode={promo.initialCode}
+                  />
+                </div>
+              )}
 
               {allEnrolled ? (
                 <div className="flex items-center gap-2 justify-center py-3 px-4 rounded-xl bg-success-light border border-success/20">

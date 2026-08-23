@@ -26,4 +26,10 @@ export const subtitlesService = {
     api.post<{ job: SubtitleJobInfo }>('/teacher/video/subtitles/generate'),
   getTeacherVideoJob: () =>
     api.get<{ job: SubtitleJobInfo | null }>('/teacher/video/subtitles/job'),
+
+  // Course bonus (supplementary) video — targets a Course.bonusVideos[] subdoc.
+  generateCourseVideo: (courseId: string, videoId: string) =>
+    api.post<{ job: SubtitleJobInfo }>(`/courses/${courseId}/bonus-videos/${videoId}/subtitles/generate`),
+  getCourseVideoJob: (courseId: string, videoId: string) =>
+    api.get<{ job: SubtitleJobInfo | null }>(`/courses/${courseId}/bonus-videos/${videoId}/subtitles/job`),
 };

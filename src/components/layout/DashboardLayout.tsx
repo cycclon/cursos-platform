@@ -8,11 +8,11 @@ import { workshopsService } from '@/services/workshops';
 import { bugReportsService } from '@/services/bugReports';
 import {
   LayoutDashboard, BookOpen, BarChart3, TrendingUp, Bell,
-  ChevronRight, Package, HelpCircle, MessageSquare, UserCircle, CalendarDays, Receipt, Bug,
+  ChevronRight, Package, HelpCircle, MessageSquare, UserCircle, CalendarDays, Receipt, Bug, Ticket,
 } from 'lucide-react';
 
 export default function DashboardLayout() {
-  const { role } = useAuth();
+  const { role, isMainTeacher } = useAuth();
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path;
@@ -55,6 +55,9 @@ export default function DashboardLayout() {
     { to: '/admin/faq', label: 'FAQ', icon: HelpCircle },
     { to: '/admin/opiniones', label: 'Opiniones', icon: MessageSquare },
     { to: '/admin/estadisticas', label: 'Estadísticas', icon: BarChart3 },
+    // Only the main teacher may mint codes — helper teachers get a 403, so the
+    // link is hidden rather than shown and then refused.
+    ...(isMainTeacher ? [{ to: '/admin/codigos', label: 'Códigos', icon: Ticket }] : []),
     { to: '/admin/progreso', label: 'Progreso', icon: TrendingUp },
     { to: '/admin/recordatorios', label: 'Recordatorios', icon: Bell },
     { to: '/admin/ventas', label: 'Detalle de Ventas', icon: Receipt },
@@ -62,6 +65,7 @@ export default function DashboardLayout() {
 
   const superuserLinks = [
     { to: '/superusuario', label: 'Panel General', icon: LayoutDashboard },
+    { to: '/superusuario/codigos', label: 'Códigos', icon: Ticket },
     { to: '/superusuario/progreso', label: 'Progreso', icon: TrendingUp },
     { to: '/superusuario/recordatorios', label: 'Recordatorios', icon: Bell },
     { to: '/superusuario/ventas', label: 'Detalle de Ventas', icon: Receipt },

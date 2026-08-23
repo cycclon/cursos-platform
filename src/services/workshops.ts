@@ -1,5 +1,13 @@
 import { api } from './api';
-import type { Workshop } from '@/types';
+import type { Clearable, Workshop } from '@/types';
+
+// Write payload — see CourseInput. `null` clears a price/label/cupo.
+export type WorkshopInput = Partial<
+  Clearable<
+    Workshop,
+    'discountPrice' | 'priceUsd' | 'discountPriceUsd' | 'discountLabel' | 'capacity'
+  >
+>;
 
 function buildQuery(params?: Record<string, string | boolean | undefined>): string {
   if (!params) return '';
@@ -13,9 +21,11 @@ function buildQuery(params?: Record<string, string | boolean | undefined>): stri
 export const workshopsService = {
   getWorkshops: (params?: { category?: string; featured?: boolean; search?: string; upcoming?: boolean }) =>
     api.get<Workshop[]>(`/workshops${buildQuery(params)}`),
+  // Editor fetch: raw canonical + translations overlay (see teacherService).
+  getWorkshopsForEdit: () => api.get<Workshop[]>('/workshops?raw=1'),
   getWorkshopBySlug: (slug: string) => api.get<Workshop>(`/workshops/${slug}`),
-  createWorkshop: (data: Partial<Workshop>) => api.post<Workshop>('/workshops', data),
-  updateWorkshop: (slug: string, data: Partial<Workshop>) =>
+  createWorkshop: (data: WorkshopInput) => api.post<Workshop>('/workshops', data),
+  updateWorkshop: (slug: string, data: WorkshopInput) =>
     api.put<Workshop>(`/workshops/${slug}`, data),
   deleteWorkshop: (slug: string) => api.delete<void>(`/workshops/${slug}`),
 };

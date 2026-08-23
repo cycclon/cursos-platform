@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Play, CheckCircle2, Lock, FileText, Download,
-  ChevronLeft, BookOpen, ArrowRight, ChevronRight, Link2, Layers,
+  Play, CheckCircle2, Lock, FileText, Download, Award,
+  ChevronLeft, BookOpen, ArrowRight, ChevronRight, Link2, Layers, Film,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { coursesService } from '@/services/courses';
@@ -12,8 +12,12 @@ import VideoPlayer from '@/components/ui/VideoPlayer';
 import FlashcardDeck from '@/components/course/FlashcardDeck';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { formatDuration } from '@/utils/video';
-import type { ModuleProgressEntry, ModuleVideo } from '@/types';
+import type { LucideIcon } from 'lucide-react';
+import type { Module, ModuleProgressEntry, ModuleVideo } from '@/types';
+
+const BONUS_SUBTITLE_LABELS: Record<string, string> = { es: 'Español', en: 'English' };
 
 // Helper to get the effective videos list (handles legacy single videoUrl)
 function getModuleVideos(mod: { videos?: ModuleVideo[]; videoUrl?: string; videoDuration?: string; title?: string }): ModuleVideo[] {
@@ -30,6 +34,19 @@ function getModuleVideos(mod: { videos?: ModuleVideo[]; videoUrl?: string; video
   return [];
 }
 
+// Helper to pick the sidebar icon for a module.
+// Not every module is a video — some are downloads, external resources or a
+// flashcard deck. A play icon on those promises playback that never arrives, so
+// fall back to whatever the module actually holds.
+function getModuleIcon(mod: Module): LucideIcon {
+  if (getModuleVideos(mod).length > 0) return Play;
+  if (mod.materials.length > 0) return FileText;
+  if ((mod.links ?? []).length > 0) return Link2;
+  // The public endpoint strips the cards themselves and sends a count instead.
+  if ((mod.flashcards?.length ?? mod.flashcardCount ?? 0) > 0) return Layers;
+  return BookOpen;
+}
+
 // Helper to extract module progress entry (handles legacy number format)
 function getModuleProgressEntry(
   enrollment: { moduleProgress?: Record<string, ModuleProgressEntry | number> } | undefined,
@@ -44,6 +61,7 @@ function getModuleProgressEntry(
 export default function CoursePlayer() {
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
+  const { language } = useLanguage();
   const queryClient = useQueryClient();
   const toast = useToast();
   const { user, role } = useAuth();
@@ -58,14 +76,19 @@ export default function CoursePlayer() {
     queryFn: enrollmentsService.getEnrollments,
   });
 
-  // Debounced invalidation — only re-fetch enrollment data every 30s max
+  // Debounced invalidation — only re-fetch enrollment data every 30s max.
+  //
+  // The throttle exists for video progress, which saves every few seconds while
+  // a video plays; refetching the whole enrolment list on every tick would be
+  // wasteful. It must NOT apply to discrete actions the student takes and
+  // expects to see reflected at once — a completion swallowed by the throttle
+  // shows its toast and then leaves the module looking untouched until reload.
   const lastInvalidateRef = useRef(0);
-  const invalidateEnrollments = useCallback(() => {
+  const invalidateEnrollments = useCallback((force = false) => {
     const now = Date.now();
-    if (now - lastInvalidateRef.current > 30_000) {
-      lastInvalidateRef.current = now;
-      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
-    }
+    if (!force && now - lastInvalidateRef.current <= 30_000) return;
+    lastInvalidateRef.current = now;
+    queryClient.invalidateQueries({ queryKey: ['enrollments'] });
   }, [queryClient]);
 
   const saveVideoProgressMutation = useMutation({
@@ -97,7 +120,7 @@ export default function CoursePlayer() {
     mutationFn: (vars: { courseId: string; moduleId: string }) =>
       enrollmentsService.completeModule(vars.courseId, vars.moduleId),
     onSuccess: () => {
-      invalidateEnrollments();
+      invalidateEnrollments(true);
       toast.success(t('coursePlayer.moduleCompleted'));
     },
     onError: () => toast.error(t('coursePlayer.moduleCompleteError')),
@@ -383,14 +406,34 @@ export default function CoursePlayer() {
               </p>
             </div>
           </div>
+          {/* The exam is a one-way door: once approved it can't be retaken, so a
+              student coming back to review the course sees their result (and the
+              certificate) instead of a live "Rendir examen" button. */}
           {course.hasTest && enrollment && enrollment.progress === 100 && (
-            <Link
-              to={`/examen/${course.id}`}
-              className="inline-flex items-center gap-1.5 btn-primary btn-sm rounded-lg"
-            >
-              {t('coursePlayer.takeExam')}
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+            enrollment.testPassed ? (
+              enrollment.certificateId ? (
+                <Link
+                  to={`/certificado/${enrollment.certificateId}`}
+                  className="inline-flex items-center gap-1.5 btn-secondary btn-sm rounded-lg"
+                >
+                  <Award className="w-3.5 h-3.5" />
+                  {t('coursePlayer.viewCertificate')}
+                </Link>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-success">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {t('coursePlayer.examPassed')}
+                </span>
+              )
+            ) : (
+              <Link
+                to={`/examen/${course.id}`}
+                className="inline-flex items-center gap-1.5 btn-primary btn-sm rounded-lg"
+              >
+                {t('coursePlayer.takeExam')}
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            )
           )}
         </div>
       </div>
@@ -639,6 +682,58 @@ export default function CoursePlayer() {
               </div>
             ) : null
           )}
+          {/* Bonus / supplementary videos — course-level, not part of the module
+              progression and never counted toward progress. */}
+          {(enrollment || isOwner) && (course.bonusVideos?.length ?? 0) > 0 && (
+            <div className="bg-surface-raised rounded-xl p-6 border border-primary-100/20 mt-6">
+              <h3 className="font-display text-lg font-semibold text-ink mb-1 flex items-center gap-2">
+                <Film className="w-5 h-5 text-highlight" />
+                {t('coursePlayer.bonusTitle')}
+              </h3>
+              <p className="text-sm text-ink-light mb-4">{t('coursePlayer.bonusHint')}</p>
+              <div className="space-y-5">
+                {(course.bonusVideos ?? []).map((bv, idx) => {
+                  const tracks = bv.subtitles ?? [];
+                  return (
+                    <div key={bv.id}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Play className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <span className="text-sm font-medium text-ink">
+                          {bv.title || t('coursePlayer.videoFallback', { number: idx + 1 })}
+                        </span>
+                        {bv.duration > 0 && (
+                          <span className="text-xs text-ink-light">{formatDuration(bv.duration)}</span>
+                        )}
+                      </div>
+                      <div className="relative aspect-video rounded-xl overflow-hidden bg-ink">
+                        <video
+                          src={bv.url}
+                          className="w-full h-full object-contain"
+                          controls
+                          controlsList="nodownload"
+                          playsInline
+                          preload="metadata"
+                          // Only opt into CORS mode when there are subtitle tracks (see VideoPlayer).
+                          crossOrigin={tracks.length > 0 ? 'anonymous' : undefined}
+                        >
+                          {tracks.map(tr => (
+                            <track
+                              key={`${tr.lang}-${tr.url}`}
+                              kind="subtitles"
+                              src={tr.url}
+                              srcLang={tr.lang}
+                              label={BONUS_SUBTITLE_LABELS[tr.lang] ?? tr.lang}
+                              default={tr.lang === language}
+                            />
+                          ))}
+                        </video>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Module sidebar */}
@@ -653,6 +748,7 @@ export default function CoursePlayer() {
                 const active = mod.id === activeModuleId;
                 const completed = isCompleted(mod.id);
                 const videos = getModuleVideos(mod);
+                const ModuleIcon = getModuleIcon(mod);
                 const modPercent = active && liveVideoPercent !== null
                   ? liveVideoPercent // Use live data for the active module
                   : getModulePercent(mod.id); // Use server data for others
@@ -670,7 +766,7 @@ export default function CoursePlayer() {
                     {completed ? (
                       <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
                     ) : mod.isFree || enrollment || isOwner ? (
-                      <Play className="w-5 h-5 text-chocolate shrink-0" />
+                      <ModuleIcon className="w-5 h-5 text-chocolate shrink-0" />
                     ) : (
                       <Lock className="w-5 h-5 text-ink-light/50 shrink-0" />
                     )}

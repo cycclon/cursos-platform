@@ -16,6 +16,10 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { formatPrice, formatDateTime } from '@/utils/format';
 import { itemPriceView } from '@/utils/pricing';
+import { promoPriceView, usePromoCheckout } from '@/hooks/usePromoCheckout';
+import { promoCodesService } from '@/services/promoCodes';
+import { localizePromoError } from '@/i18n/errors';
+import PromoCodeField from '@/components/checkout/PromoCodeField';
 import { workshopCapacityStatus } from '@/utils/capacity';
 import { CapacityBadge } from '@/components/ui/CapacityBadge';
 
@@ -35,6 +39,7 @@ export default function WorkshopDetail() {
   const navigate = useNavigate();
 
   const [busy, setBusy] = useState(false);
+  const promo = usePromoCheckout();
 
   const { data: workshop, isLoading: loadingWorkshop } = useQuery({
     queryKey: ['workshops', slug],
@@ -82,6 +87,18 @@ export default function WorkshopDetail() {
 
     setBusy(true);
     try {
+      // A code that covers the whole price is redeemed, not paid — neither
+      // gateway accepts a zero unit price.
+      if (promo.quote?.free) {
+        await promoCodesService.redeem({
+          workshopId: workshop.id,
+          code: promo.quote.code,
+          currency: promo.quote.currency,
+        });
+        queryClient.invalidateQueries({ queryKey: ['workshop-registrations'] });
+        toast.success(t('workshops.enrollConfirmed'));
+        return;
+      }
       if (workshop.price === 0) {
         await workshopRegistrationsService.register(workshop.id);
         queryClient.invalidateQueries({ queryKey: ['workshop-registrations'] });
@@ -89,15 +106,23 @@ export default function WorkshopDetail() {
         return;
       }
       if (currency === 'USD' && (workshop.discountPriceUsd ?? workshop.priceUsd)) {
-        const { checkoutUrl } = await paymentsService.createLemonCheckout({ workshopId: workshop.id });
+        const { checkoutUrl } = await paymentsService.createLemonCheckout({
+          workshopId: workshop.id,
+          promoCode: promo.promoCode,
+        });
         window.location.href = checkoutUrl;
       } else {
-        const { initPoint } = await paymentsService.createPreference({ workshopId: workshop.id });
+        const { initPoint } = await paymentsService.createPreference({
+          workshopId: workshop.id,
+          promoCode: promo.promoCode,
+        });
         window.location.href = initPoint;
       }
     } catch (err: unknown) {
-      const error = err as { status?: number; message?: string };
-      if (error.message === 'cupo_agotado') {
+      const error = err as { status?: number; message?: string; code?: string };
+      if (error.code?.startsWith('promo_')) {
+        toast.error(localizePromoError(err, t));
+      } else if (error.message === 'cupo_agotado') {
         toast.error(t('workshops.soldOutSorry'));
       } else if (error.status === 503 && error.message === 'mercadopago_not_connected') {
         toast.error(t('workshops.paymentUpdating'));
@@ -137,6 +162,8 @@ export default function WorkshopDetail() {
 
   const pv = itemPriceView(currency, workshop);
   const intlUnavailable = currency === 'USD' && !pv.usdAvailable;
+  // An applied code overrides the headline price and struck-through reference.
+  const shownPrice = promoPriceView(pv, promo.quote);
   const seatsLeft =
     workshop.capacity != null ? Math.max(workshop.capacity - workshop.registeredCount, 0) : null;
   const capacityStatus = workshopCapacityStatus(workshop);
@@ -202,12 +229,25 @@ export default function WorkshopDetail() {
 
               <div className="mb-4">
                 <div className="flex items-baseline gap-3">
-                  <span className="font-display text-3xl font-bold text-chocolate">{formatPrice(pv.amount, pv.currency)}</span>
-                  {pv.compareAt != null && (
-                    <span className="text-lg text-ink-light line-through">{formatPrice(pv.compareAt, pv.currency)}</span>
+                  <span className="font-display text-3xl font-bold text-primary">
+                    {shownPrice.amount === 0 ? t('promo.freeWithCode') : formatPrice(shownPrice.amount, shownPrice.currency)}
+                  </span>
+                  {shownPrice.compareAt != null && (
+                    <span className="text-lg text-ink-light line-through">{formatPrice(shownPrice.compareAt, shownPrice.currency)}</span>
                   )}
                 </div>
               </div>
+
+              {!myRegistration && !soldOut && workshop.availability === 'Disponible' && (
+                <div className="mb-4">
+                  <PromoCodeField
+                    item={{ workshopId: workshop.id }}
+                    quote={promo.quote}
+                    onQuote={promo.setQuote}
+                    initialCode={promo.initialCode}
+                  />
+                </div>
+              )}
 
               {myRegistration ? (
                 <div className="space-y-3">

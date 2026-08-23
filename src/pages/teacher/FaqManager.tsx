@@ -17,8 +17,8 @@ export default function FaqManager() {
   const toast = useToast();
 
   const { data: faqs = [], isLoading } = useQuery({
-    queryKey: ['faqs'],
-    queryFn: faqsService.getFaqs,
+    queryKey: ['faqs', 'edit'],
+    queryFn: faqsService.getFaqsForEdit,
   });
 
   const [isEditing, setIsEditing] = useState(false);

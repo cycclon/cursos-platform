@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { statisticsService } from '@/services/statistics';
 import { formatPrice } from '@/utils/format';
+import { buildCsv, datedFilename, downloadCsv } from '@/utils/csv';
 import { useToast } from '@/context/ToastContext';
 import type { SaleDetail, ResourceStatType } from '@/types';
 
@@ -36,40 +37,30 @@ function formatDateTime(iso: string | null): { date: string; time: string } {
 }
 
 function toCSV(rows: SaleDetail[]): string {
-  const header = ['Fecha', 'Hora', 'Tipo', 'Artículo', 'Comprador', 'Email', 'Monto', 'Moneda', 'ID Pago'];
-  const escape = (v: string) => {
-    if (v.includes(',') || v.includes('"') || v.includes('\n')) {
-      return `"${v.replace(/"/g, '""')}"`;
-    }
-    return v;
-  };
-  const lines = rows.map((r) => {
-    const { date, time } = formatDateTime(r.paidAt || r.createdAt);
-    return [
-      date,
-      time,
-      TYPE_LABEL[r.type],
-      r.item?.title ?? '—',
-      r.student?.name ?? '—',
-      r.student?.email ?? '—',
-      String(r.amount),
-      r.currency ?? 'ARS',
-      r.mercadoPagoId ?? r.lemonSqueezyOrderId ?? '',
-    ].map(escape).join(',');
-  });
-  return [header.join(','), ...lines].join('\n');
-}
-
-function downloadCSV(filename: string, content: string) {
-  const blob = new Blob([`﻿${content}`], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', filename);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  return buildCsv(
+    [
+      'Fecha', 'Hora', 'Tipo', 'Artículo', 'Comprador', 'Email',
+      'Código', 'Precio lista', 'Descuento', 'Monto', 'Comisión', 'Moneda', 'ID Pago',
+    ],
+    rows.map((r) => {
+      const { date, time } = formatDateTime(r.paidAt || r.createdAt);
+      return [
+        date,
+        time,
+        TYPE_LABEL[r.type],
+        r.item?.title ?? '—',
+        r.student?.name ?? '—',
+        r.student?.email ?? '—',
+        r.promoCode ?? '',
+        String(r.listAmount ?? r.amount),
+        String(r.discountAmount ?? 0),
+        String(r.amount),
+        String(r.commissionAmount ?? 0),
+        r.currency ?? 'ARS',
+        r.mercadoPagoId ?? r.lemonSqueezyOrderId ?? '',
+      ];
+    }),
+  );
 }
 
 export default function SalesDetail() {
@@ -183,8 +174,7 @@ export default function SalesDetail() {
       toast.error('No hay ventas para exportar.');
       return;
     }
-    const stamp = new Date().toISOString().slice(0, 10);
-    downloadCSV(`ventas-${stamp}.csv`, toCSV(sorted));
+    downloadCsv(datedFilename('ventas'), toCSV(sorted));
     toast.success('Archivo descargado.');
   };
 
@@ -349,6 +339,7 @@ export default function SalesDetail() {
                       <SortIcon k="item" />
                     </button>
                   </th>
+                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-ink-light uppercase tracking-wider">Código</th>
                   <th className="text-right px-5 py-3 text-[11px] font-semibold text-ink-light uppercase tracking-wider">
                     <button onClick={() => handleSort('amount')} className="inline-flex items-center gap-1.5 hover:text-chocolate transition-colors ml-auto">
                       Monto
@@ -406,10 +397,24 @@ export default function SalesDetail() {
                           {s.item?.title ?? <span className="text-ink-light italic">Artículo eliminado</span>}
                         </div>
                       </td>
+                      <td className="px-5 py-4 align-top">
+                        {s.promoCode ? (
+                          <span className="inline-block px-2 py-0.5 rounded-md bg-primary-50 text-[11px] font-mono tracking-wide text-primary">
+                            {s.promoCode}
+                          </span>
+                        ) : (
+                          <span className="text-ink-light/40">—</span>
+                        )}
+                      </td>
                       <td className="px-5 py-4 align-top text-right">
                         <span className="font-display text-base font-bold text-ink tabular-nums">
-                          {formatPrice(s.amount, s.currency)}
+                          {s.amount === 0 ? 'Sin cargo' : formatPrice(s.amount, s.currency)}
                         </span>
+                        {!!s.discountAmount && s.discountAmount > 0 && (
+                          <span className="block text-[11px] text-ink-light line-through tabular-nums">
+                            {formatPrice(s.listAmount ?? s.amount, s.currency)}
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-4 align-top">
                         {s.mercadoPagoId ? (

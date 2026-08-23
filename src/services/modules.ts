@@ -18,6 +18,9 @@ type ModuleInput = Omit<Partial<Module>, 'videos'> & {
 
 export const modulesService = {
   getModules: (courseId: string) => api.get<Module[]>(`/courses/${courseId}/modules`),
+  // Editor fetch: `raw=1` keeps the `translations` overlay (teacher/superuser) so
+  // the EN authoring fields load their saved values and a save can't wipe them.
+  getModulesForEdit: (courseId: string) => api.get<Module[]>(`/courses/${courseId}/modules?raw=1`),
   createModule: (courseId: string, data: ModuleInput) =>
     api.post<Module>(`/courses/${courseId}/modules`, data),
   updateModule: (moduleId: string, data: ModuleInput) =>

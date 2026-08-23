@@ -108,8 +108,8 @@ export default function WorkshopManager() {
   });
 
   const { data: workshops = [], isLoading: loadingWorkshops } = useQuery({
-    queryKey: ['workshops'],
-    queryFn: () => workshopsService.getWorkshops(),
+    queryKey: ['workshops', 'edit'],
+    queryFn: workshopsService.getWorkshopsForEdit,
   });
 
   const [isEditing, setIsEditing] = useState(false);
@@ -287,16 +287,19 @@ export default function WorkshopManager() {
       description: formData.description,
       imageUrl: formData.imageUrl,
       price: formData.price,
-      discountPrice: formData.discountPrice,
-      priceUsd: formData.priceUsd,
-      discountPriceUsd: formData.discountPriceUsd,
+      // Cleared fields go out as explicit `null` ("borrar"), never as `undefined` —
+      // JSON.stringify drops undefined keys and a missing key means "dejar como
+      // está", so the old value would survive the save.
+      discountPrice: formData.discountPrice ?? null,
+      priceUsd: formData.priceUsd ?? null,
+      discountPriceUsd: formData.discountPriceUsd ?? null,
       discountLabel,
       scheduledAt: new Date(formData.scheduledAt).toISOString(),
       durationMinutes: formData.durationMinutes,
       modality: formData.modality,
       meetingUrl: formData.modality === 'online' ? formData.meetingUrl : undefined,
       location: formData.modality === 'presencial' ? formData.location : undefined,
-      capacity: formData.capacity,
+      capacity: formData.capacity ?? null,
       prerequisiteCourseIds: formData.prerequisiteCourseIds,
       prerequisitesText: formData.prerequisitesText,
       availability: formData.availability,
@@ -306,10 +309,10 @@ export default function WorkshopManager() {
 
     try {
       if (editingWorkshop) {
-        await workshopsService.updateWorkshop(editingWorkshop.slug, payload as Partial<Workshop>);
+        await workshopsService.updateWorkshop(editingWorkshop.slug, payload);
         toast.success('Taller actualizado correctamente.');
       } else {
-        await workshopsService.createWorkshop(payload as Partial<Workshop>);
+        await workshopsService.createWorkshop(payload);
         toast.success('Taller creado correctamente.');
       }
       queryClient.invalidateQueries({ queryKey: ['workshops'] });

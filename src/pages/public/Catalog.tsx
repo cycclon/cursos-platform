@@ -9,10 +9,15 @@ import CourseCard from '@/components/course/CourseCard';
 // from the (language-resolved) course data.
 const ALL = '__all__';
 
+type SortOrder = 'program' | 'newest' | 'oldest';
+
 export default function Catalog() {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState(ALL);
+  // Default to the curriculum sequence the teacher defined (course `order`); the
+  // date-based options stay available as an opt-in re-sort.
+  const [sortOrder, setSortOrder] = useState<SortOrder>('program');
 
   const { data: courses = [], isLoading } = useQuery({
     queryKey: ['courses'],
@@ -24,13 +29,26 @@ export default function Catalog() {
   }, [courses]);
 
   const filtered = useMemo(() => {
-    return courses.filter(c => {
+    const result = courses.filter(c => {
       const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase()) ||
         c.summary.toLowerCase().includes(search.toLowerCase());
       const matchesCategory = category === ALL || c.category === category;
       return matchesSearch && matchesCategory;
     });
-  }, [courses, search, category]);
+    // `filter` already returned a fresh array, so sorting in place doesn't
+    // mutate the React Query cache. "Programa" follows the teacher-defined
+    // sequence (course `order`, createdAt as tie-break); the other two sort by
+    // publish date.
+    result.sort((a, b) => {
+      if (sortOrder === 'program') {
+        return (a.order - b.order) ||
+          (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      }
+      const diff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return sortOrder === 'newest' ? diff : -diff;
+    });
+    return result;
+  }, [courses, search, category, sortOrder]);
 
   return (
     <div>
@@ -74,6 +92,33 @@ export default function Catalog() {
                 {cat === ALL ? t('catalog.allCategories') : cat}
               </button>
             ))}
+          </div>
+
+          {/* Sort by publish date */}
+          <div className="flex items-center gap-3 sm:ml-auto shrink-0">
+            <span className="font-mono text-[0.65rem] uppercase tracking-[0.2em] text-ink-light">
+              {t('catalog.sortLabel')}
+            </span>
+            <div className="inline-flex rounded-full border border-primary-100/30 bg-surface-raised p-0.5">
+              {([
+                { value: 'program' as const, label: t('catalog.sortProgram') },
+                { value: 'newest' as const, label: t('catalog.sortNewest') },
+                { value: 'oldest' as const, label: t('catalog.sortOldest') },
+              ]).map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setSortOrder(opt.value)}
+                  aria-pressed={sortOrder === opt.value}
+                  className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all ${
+                    sortOrder === opt.value
+                      ? 'bg-primary text-surface shadow-warm'
+                      : 'text-ink-light hover:text-primary'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BookOpen, Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { localizeApiError } from '@/i18n/errors';
+import { postLoginDestination } from '@/utils/promoSession';
 
 export default function Login() {
   const { isAuthenticated, loginWithGoogle, loginWithEmail, role } = useAuth();
+  const location = useLocation();
   const { t } = useTranslation();
   const toast = useToast();
   const [email, setEmail] = useState('');
@@ -17,8 +19,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   if (isAuthenticated) {
-    const dest = role === 'teacher' ? '/admin/panel' : role === 'superuser' ? '/superusuario' : '/mi-panel';
-    return <Navigate to={dest} replace />;
+    return <Navigate to={postLoginDestination(role, location.search)} replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

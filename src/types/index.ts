@@ -1,3 +1,10 @@
+/**
+ * Marks the given keys as clearable on a write payload: they accept `null`,
+ * which the API reads as "unset this field". An omitted key means "leave
+ * unchanged" — `undefined` can't travel, since `JSON.stringify` drops the key.
+ */
+export type Clearable<T, K extends keyof T> = Omit<T, K> & { [P in K]?: T[P] | null };
+
 export type UserRole = 'visitor' | 'student' | 'teacher' | 'superuser';
 export type AppLanguage = 'es' | 'en';
 export type AppCurrency = 'ARS' | 'USD';
@@ -42,6 +49,19 @@ export interface ModuleVideo {
   url: string;
   title: string;
   duration: number; // seconds
+  order: number;
+  subtitles?: VideoSubtitle[];
+  translations?: { en?: { title?: string } };
+}
+
+// Optional/supplementary course video (not tied to a module, never tracked for
+// progress). Enrolled-only: the API returns an empty array for viewers without
+// full access. Same shape as a module video so the player can reuse subtitles.
+export interface BonusVideo {
+  id: string;
+  url: string;
+  title: string;
+  duration: number;
   order: number;
   subtitles?: VideoSubtitle[];
   translations?: { en?: { title?: string } };
@@ -115,11 +135,15 @@ export interface Course {
   questionCount?: number;
   hasCertificate: boolean;
   moneyBackGuarantee?: string;
+  // Optional supplementary videos (enrolled-only; empty for viewers without access).
+  bonusVideos?: BonusVideo[];
   rating: number;
   reviewCount: number;
   studentCount: number;
   createdAt: string;
   featured: boolean;
+  /** Manual catalog position (drag-to-reorder in admin). Lower = earlier. */
+  order: number;
   // English overlay (teacher/superuser payloads only; students receive
   // language-resolved fields instead). `availability` is a state enum and is
   // never translated in data.
@@ -138,6 +162,29 @@ export interface Course {
   };
 }
 
+/**
+ * Question formats. `tf` is stored and graded exactly like a two-option `mcq`
+ * (`options: ['Verdadero','Falso']`) — it differs only in how it's drawn.
+ */
+export type QuestionType = 'mcq' | 'tf' | 'fill' | 'match';
+
+/** One stop on the game-mode skill tree. Units unlock strictly in `order`. */
+export interface ExamUnit {
+  id: string;
+  title: string;
+  icon: string;
+  description: string;
+  order: number;
+  translations?: { en?: { title?: string; description?: string } };
+}
+
+export interface GameConfig {
+  hearts: number; // mistakes allowed across the whole exam; running out ends the attempt
+  xpPerCorrect: number;
+  xpStreakBonus: number;
+  streakThreshold: number;
+}
+
 export interface TestConfig {
   totalQuestions: number;
   timeLimit: number; // in minutes
@@ -145,32 +192,66 @@ export interface TestConfig {
   passingScore: number; // percentage
   timed: boolean; // false = self-paced (no countdown / auto-submit)
   showExplanations: boolean; // "modo explicaciones": immediate per-question feedback
+  gamified: boolean; // "modo juego": skill tree, hearts, XP — implies immediate feedback
+  gameConfig?: GameConfig;
+  units?: ExamUnit[];
 }
 
 export interface TestQuestion {
   id: string;
   courseId: string;
+  type: QuestionType;
+  unitId?: string;
   question: string;
+  // Question-level rationale, shown once the answer is marked. The only
+  // explanation slot fill/match have (they carry no options).
+  explanation?: string;
   options: string[];
   explanations?: string[]; // per-option rationale, aligned by index with options
   correctIndex: number;
+  accepted?: string[]; // `fill` — every answer that counts as correct
+  pairsLeft?: string[]; // `match` — pairsLeft[i] belongs with pairsRight[i]
+  pairsRight?: string[];
   order: number;
-  // EN options/explanations must match the canonical options length.
-  translations?: { en?: { question?: string; options?: string[]; explanations?: string[] } };
+  // EN options/explanations/pairs must match the canonical array lengths.
+  translations?: {
+    en?: {
+      question?: string;
+      explanation?: string;
+      options?: string[];
+      explanations?: string[];
+      accepted?: string[];
+      pairsLeft?: string[];
+      pairsRight?: string[];
+    };
+  };
 }
 
 export interface Question {
   id: string;
   courseId: string;
-  type: 'multiple-choice' | 'true-false';
+  type: QuestionType;
+  unitId?: string;
   text: string;
   options: string[];
-  correctAnswer: number;
-  // Present only when the course runs in "modo explicaciones" — the exam
-  // delivery endpoint reveals these so the client can grade on the spot.
+  pairsLeft?: string[];
+  pairsRight?: string[];
+  // Present only when the course reveals the answer key up front — "modo
+  // explicaciones" and "modo juego" both mark answers on the spot, which is
+  // impossible without it. Grading is still re-run server-side on submit.
   correctIndex?: number;
+  explanation?: string;
   explanations?: string[];
+  accepted?: string[];
 }
+
+/**
+ * A submitted answer. Shape follows the question type: option index for
+ * mcq/tf, raw text for fill, and for match the ORDERED log of pairing attempts
+ * (`[leftIndex, rightIndex]`) — a finished grid is always correct, so only the
+ * attempts reveal how well the student did.
+ */
+export type SubmittedAnswer = number | string | [number, number][];
 
 export interface Review {
   id: string;
@@ -234,15 +315,119 @@ export interface Certificate {
 
 export interface SalesData {
   month: string;
-  /** ARS revenue for the month (Mercado Pago lane). */
+  /**
+   * ARS revenue for the month (Mercado Pago lane) — what was actually charged,
+   * already net of any promo/referral discount. This is the fee base.
+   */
   revenue: number;
   /** USD revenue for the month (Lemon Squeezy lane); never summed with ARS. */
   revenueUsd?: number;
+  /** List price before discounts. `revenue + discountTotal`. */
+  listRevenue?: number;
+  listRevenueUsd?: number;
+  /** Total granted away by promo/referral codes. */
+  discountTotal?: number;
+  discountTotalUsd?: number;
+  /** Owed to influencers. NOT deducted from the fee base. */
+  commissionTotal?: number;
+  commissionTotalUsd?: number;
   sales: number;
   students: number;
 }
 
 export type ResourceStatType = 'course' | 'workshop' | 'bundle';
+
+/** 'promo' → a fully-discounted sale; no gateway was involved. */
+export type PaymentProvider = 'mercadopago' | 'lemonsqueezy' | 'manual' | 'promo';
+
+/* ── Promo & referral codes ───────────────────────────────────────── */
+
+export type PromoCodeKind = 'promo' | 'referral';
+export type PromoCodeScope = 'all' | 'selected';
+
+export interface PromoCode {
+  id: string;
+  code: string;
+  kind: PromoCodeKind;
+  discountPercent: number;
+  /** Internal note, never shown to students. */
+  label: string | null;
+  payeeName: string | null;
+  payeeEmail: string | null;
+  commissionPercent: number | null;
+  /** `null` = ilimitado. */
+  maxUses: number | null;
+  /** `null` = sin vencimiento. */
+  expiresAt: string | null;
+  oncePerStudent: boolean;
+  active: boolean;
+  scope: PromoCodeScope;
+  courseIds: string[];
+  bundleIds: string[];
+  workshopIds: string[];
+  createdAt: string | null;
+
+  /* Derived usage — computed from the payments that reference this code. */
+  uses: number;
+  /** `null` when the code has no use limit. */
+  remaining: number | null;
+  expired: boolean;
+  exhausted: boolean;
+  lastUsedAt: string | null;
+  /** ARS and USD are tracked separately and never summed. */
+  grossArs: number; grossUsd: number;
+  netArs: number; netUsd: number;
+  discountArs: number; discountUsd: number;
+  commissionArs: number; commissionUsd: number;
+  commissionPendingArs: number; commissionPendingUsd: number;
+}
+
+export interface PromoRedemption {
+  id: string;
+  paidAt: string | null;
+  type: ResourceStatType;
+  provider: PaymentProvider;
+  currency: 'ARS' | 'USD';
+  listAmount: number;
+  amount: number;
+  discountAmount: number;
+  commissionAmount: number;
+  commissionPaidAt: string | null;
+  student: { name: string; email: string } | null;
+  item: { title: string; slug: string } | null;
+}
+
+/** Quote returned by POST /promo-codes/validate. Display only. */
+export interface PromoQuote {
+  code: string;
+  discountPercent: number;
+  currency: 'ARS' | 'USD';
+  listAmount: number;
+  amount: number;
+  discountAmount: number;
+  /** The code covers the whole price — redeem instead of going to checkout. */
+  free: boolean;
+}
+
+/** Public payload behind /canjear/:code. Never includes payee or commission. */
+export type PromoPublicInfo =
+  | { code: string; valid: false; reason: string }
+  | {
+      code: string;
+      valid: true;
+      kind: PromoCodeKind;
+      discountPercent: number;
+      free: boolean;
+      scope: PromoCodeScope;
+      expiresAt: string | null;
+      items: {
+        type: ResourceStatType;
+        id: string;
+        title: string;
+        slug: string;
+        imageUrl: string | null;
+      }[];
+    };
 
 export interface CourseStat {
   /** Legacy id field — equals `id` */
@@ -269,9 +454,15 @@ export interface SaleDetail {
   paidAt: string | null;
   createdAt: string | null;
   currency: 'ARS' | 'USD';
-  provider: 'mercadopago' | 'lemonsqueezy';
+  provider: PaymentProvider;
   mercadoPagoId: string | null;
   lemonSqueezyOrderId: string | null;
+  /** Code used on this sale, if any. */
+  promoCode?: string | null;
+  /** Price before the discount; equals `amount` when no code was used. */
+  listAmount?: number;
+  discountAmount?: number;
+  commissionAmount?: number;
   student: {
     id: string;
     name: string;
